@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tile-Based Game</title>
+    <link rel="icon" type="image/png" href="Textures/Bush.png">
+    <style>
+/* General CSS for the game */
+body {
+    font-family: Georgia, "Times New Roman", serif;
+    background: linear-gradient(#e8f5e9, #f5f2e5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    user-select: none; /* Prevent text selection */
+    color: #3b2f2f;
+    transition: background-color 0.5s;
+}
+
+#screenOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-color: rgba(255, 0, 0, 0);
+    transition: background-color 0.5s ease;
+    z-index: -1;
+}
+
+#startContainer, #gameContainer, #playerGUI, #battleContainer {
+    display: none;
+    user-select: none; /* Prevent text selection in these containers */
+}
+
+#gameContainer {
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 20px;
+}
+
+#startContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#playButton {
+    padding: 15px 30px;
+    margin: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    background-color: #8fbf5a;
+    color: #f5f2e5;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: background-color 0.3s, transform 0.1s;
+}
+
+#playButton:hover {
+    background-color: #78a64b;
+    animation: playButtonHover 0.3s ease forwards;
+}
+
+#playButton:active {
+    animation: playButtonClick 0.2s ease;
+}
+
+/* Enhanced Play button animations */
+@keyframes playButtonHover {
+  0% {
+    transform: translate(0px, 0px) scale(1, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  100% {
+    transform: translate(0px, -3px) scale(1.03, 1.03);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  }
+}
+
+@keyframes playButtonClick {
+  0% {
+    transform: translate(0px, -3px) scale(1.03, 1.03);
+  }
+  50% {
+    transform: translate(0px, 1px) scale(0.97, 0.97);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1, 1);
+  }
+}
+
+/* Full-screen overlay modals */
+#slotsWindow, #worldSettingsModal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none; /* toggled by JS */
+  align-items: center; justify-content: center;
+  z-index: 9999; /* above everything */
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  width: min(900px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #e6e2d3;
+  border: 2px solid #8b6f4a;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.slot-card {
+  background: #f4f1ea;
+  border: 2px solid #8b6f4a;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.slot-title { font-weight: 700; font-size: 1.1rem; }
+  .settings-header {
+    font-weight: bold;
+    font-size: 17px;
+    margin-bottom: 10px;
+    color: #7a6a4a;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+  .settings-row label {
+    flex: 1 0 90px;
+    color: #5b4b3a;
+  }
+  .settings-row input[type="range"] {
+    flex: 2 0 100px;
+  }
+  .settings-row span {
+    min-width: 40px;
+    text-align: right;
+    color: #7a6a4a;
+  }
+  #closeSettingsBtn {
+    margin-top: 8px;
+    background: #e5d7b8;
+    border: 1px solid #b09a6b;
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    color: #5b4b3a;
+    cursor: pointer;
+    float: right;
+  }
+  #closeSettingsBtn:hover {
+    background: #f5e8c6;
+  }
+.slot-empty { opacity: 0.7; font-style: italic; }
+.slot-meta { font-size: 0.9rem; line-height: 1.2rem; }
+.names-row { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.modal-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.btn-primary, .btn-secondary, .btn-danger {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid #8b6f4a; cursor: pointer; font-weight: 700;
+}
+.btn-primary { background: #8fbf5a; color: #f5f2e5; }
+.btn-primary:hover { background: #78a64b; }
+.btn-secondary { background: #d8cbb3; }
+.btn-secondary:hover { background: #c2b294; }
+.btn-danger { background: #d9534f; color: #fff; border-color: #9c3b38; }
+.btn-danger:hover { background: #c0433f; }
+
+.ws-row { margin: 6px 0; }
+.ws-label { font-weight: 700; display: block; margin-top: 6px; }
+#wsPlayerName, #wsMapSize, #wsMode { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #8b6f4a; background: #fff; }
+.sub { margin: 4px 0 8px; opacity: .8; }
+
+
+#map {
+    display: none;
+    grid-gap: 2px;
+    margin: 20px;
+    background: rgb(77, 58, 42);
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.2);
+    position: relative;
+    z-index: 2;
+    --brightness: 1;
+}
+
+/* Minimap always on top of boards/cards */
+#minimap {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 220px;
+  height: 220px;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  z-index: 1000;               /* was 3 */
+}
+#minimap.expanded {
+  width: 440px;
+  height: 440px;
+  z-index: 1000;               /* keep over everything UI-side */
+}
+
+.tile {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    background-color: #f3bf4f;
+    font-size: 12px;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: inset 0 0 3px rgba(0,0,0,0.3);
+    transition: transform 0.1s, filter 1s;
+    z-index: 1;
+    filter: brightness(var(--brightness));
+}
+
+.tile-label {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+#map.morning .tile { filter: brightness(var(--brightness)) hue-rotate(-15deg); }
+#map.day .tile { filter: brightness(var(--brightness)); }
+#map.evening .tile { filter: brightness(var(--brightness)) hue-rotate(15deg); }
+#map.night .tile { filter: brightness(calc(var(--brightness) * 0.7)); }
+
+.tile.highlighted {
+    filter: brightness(1.3);
+    transform: scale(1.1);
+    z-index: 10;
+    animation: tileHighlight 0.4s ease forwards;
+}
+
+/* Enhanced tile highlight animation */
+@keyframes tileHighlight {
+  0% {
+    transform: translate(0px, 0px) scale(.95, 1.05);
+    filter: brightness(1.0);
+  }
+  30% {
+    transform: translate(0px, 2px) scale(1.05, .95);
+    filter: brightness(1.2);
+  }
+  100% {
+    transform: translate(0px, -2px) scale(1.1, 1.1);
+    filter: brightness(1.3);
+  }
+}
+
+.deco {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    background-size: cover;
+    z-index: 1;
+}
+
+.playerTile {
+    background-color: #aaccee;
+    color: #fff;
+    box-shadow: 0 0 10px 3px rgba(255, 255, 200, 0.8);
+    filter: brightness(1.3);
+}
+
+.grass {
+    background: #559a5b;
+}
+
+.forest {
+    background: url('Textures/Forest.jpg') no-repeat center/cover;
+}
+
+.pond {
+    background: url('Textures/Water.jpg') no-repeat center/cover;
+}
+
+.swamp {
+    background : url('Textures/Swamp.png') no-repeat center/cover;
+}
+
+.tundra {
+    background : url('Textures/Tundra.png') no-repeat center/cover;
+}
+
+.dirt {
+    background: url('Textures/Dirt.jpg') no-repeat center/cover;
+}
+
+.rock {
+    background: #777;
+    pointer-events: none;
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+}
+
+.deco.grass-spot {
+    background-image: url('Textures/Grass spot.png');
+}
+
+.deco.grass-spot2 {
+    background-image: url('Textures/grass spot2.png');
+}
+
+.deco.grass-spot3 {
+    background-image: url('Textures/grass spot3.png');
+}
+
+.deco.flower {
+    background-image: url('Textures/flowers.png');
+}
+
+.deco.flower2 {
+    background-image: url('Textures/flowers2.png');
+}
+
+#playerGUI {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #5b4b3a;
+    color: #f5f2e5;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    border-top: 6px solid #8b6f4a;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.3);
+}
+
+#playerInfo {
+    flex-grow: 1;
+}
+
+#playerStats ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 20px;
+}
+
+#playerStats ul li {
+    font-size: 14px;
+}
+
+#playerHP,
+#playerXP,
+#playerLevel {
+  font-weight: bold;
+  background-color: #333;
+  color: #f0e68c;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.stat-bar {
+.stat-bar {
+  width: 100px;
+  height: 12px;
+  background-color: #6d5e49;
+  border-radius: 8px;
+  overflow: hidden;
+  display: inline-block;
+  margin-left: 6px;
+  margin-bottom: 6px;
+  position: relative;
+}
+.playerLevelText {
+  color: #f0e68c;
+  font-weight: bold;
+  margin-left: 2px;
+}
+.stat-card .playerLevelText {
+  font-size: 15px;
+}
+.stat-card > div {
+  margin-bottom: 6px;
+}
+/* Use for both player and ally XP bars */
+.stat-bar {
+  width: 100px;
+  height: 8px;
+  background-color: #6d5e49;
+  border-radius: 8px;
+  overflow: hidden;
+  display: inline-block;
+  margin-left: 6px;
+  position: relative;
+}
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #aaccee, #6ca3cb);
+  width: 100%;
+  transition: width 0.3s ease;
+  border-radius: inherit;
+}
+.bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 0 2px #000;
+}
+.playerLevelText {
+  color: #f0e68c;
+  font-weight: bold;
+}
+.level-up {
+  animation: levelUpFlash 0.8s;
+}
+@keyframes levelUpFlash {
+  0% { background: #f0e68c; color: #333; }
+  60% { background: #f0e68c; color: #333; }
+  100% { background: #333; color: #f0e68c; }
+}
+  width: 100px;
+  height: 8px;
+  background-color: #6d5e49;
+  border-radius: 8px;
+  overflow: hidden;
+  display: inline-block;
+  margin-left: 6px;
+  position: relative;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #a6d96a, #5a8f3a);
+  width: 100%;
+  transition: width 0.3s ease;
+  border-radius: inherit;
+}
+
+#xpBar .stat-bar-fill {
+  background: linear-gradient(to right, #aaccee, #6ca3cb);
+}
+
+.bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 0 2px #000;
+}
+
+.floating-text {
+  position: absolute;
+  top: 0;
+  font-weight: bold;
+  color: #000;
+  text-shadow: 0 0 2px #fff;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.float-up {
+  animation: floatUp 2s ease-out forwards;
+}
+
+.float-down {
+  animation: floatDown 2s ease-out forwards;
+}
+
+@keyframes floatUp {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(calc(-50% + var(--x)), -20px); }
+}
+
+@keyframes floatDown {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(calc(-50% + var(--x)), 20px); }
+}
+
+.stat-bar-highlight,
+.stat-bar-loss {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  animation: barSlide 0.5s forwards;
+}
+
+.stat-bar-highlight {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.stat-bar-loss {
+  background: rgba(255, 0, 0, 0.5);
+}
+
+@keyframes barSlide {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(var(--diff)); }
+}
+
+/* Boards: common look */
+#board,
+#enemyBoard {
+  position: fixed;
+  width: 260px;
+  box-sizing: border-box;
+  background: #e6e2d3;
+  border: 2px solid #8b6f4a;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  z-index: 5;
+  transition: right 0.3s ease; /* for minimap animation */
+}
+
+/* Player board - moved down to avoid overlaps */
+#board {
+  left: 40px;
+  top: 60%;
+  transform: translateY(-50%); /* center the board vertically */
+  max-height: 70vh; /* limit to 70% of viewport height */
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: none;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+#board::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Enemy board - moved down to avoid overlaps */
+#enemyBoard {
+  right: 40px;
+  top: 60%;
+  transform: translateY(-50%); /* center the board vertically */
+  max-height: 70vh; /* limit to 70% of viewport height */
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: block;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+#enemyBoard::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Enemy board position when minimap is expanded */
+#enemyBoard.minimap-expanded {
+  right: 480px; /* slide out when minimap expands (440px + 40px margin) */
+  transform: translateY(-50%); /* maintain vertical centering when sliding */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-height: 600px) {
+  #board, #enemyBoard {
+    max-height: 85vh; /* increase max height on shorter screens */
+  }
+}
+
+@media (max-width: 768px) {
+  #board {
+    left: 20px;
+    width: 240px;
+  }
+  #enemyBoard {
+    right: 20px;
+    width: 240px;
+  }
+  #enemyBoard.minimap-expanded {
+    right: 400px; /* adjust for smaller minimap on mobile */
+  }
+}
+
+/* Small empty hint styling */
+#enemyEmptyHint {
+  opacity: 0.65;
+  font-size: 12px;
+  margin: 6px 0 4px;
+  display: none;
+}
+
+/* Cards default safe state (no unexpected transforms) */
+.stat-card {
+  transform: none;
+}
+
+/* Stagger-ready reveal (if you use the stagger JS) */
+.stat-card.reveal {
+  display: block;
+  animation: slideInRight 0.3s both;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Optional: keep hidden look before reveal to avoid pops */
+#enemyBoard .stat-card {
+  opacity: 0;
+  transform: translateX(16px);
+}
+#enemyBoard .stat-card.reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.stat-card {
+  width: 100%;
+  background: #f4f1ea;
+  border: 2px solid #8b6f4a;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  box-sizing: border-box;
+  display: none;
+  margin-bottom: 10px;
+  transform: none; /* reset any prior transforms */
+}
+
+/* Stagger-ready reveal class (works for enemyCard + follower cards) */
+.stat-card.reveal {
+  display: block;
+  animation: slideInRight 0.3s both;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Optional: start hidden before reveal—prevents ‘pop’ if inserted visible */
+#enemyBoard .stat-card {
+  opacity: 0;
+  transform: translateX(16px);
+}
+#enemyBoard .stat-card.reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.card-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+#playerCard,
+  .section-title {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin: 0 0 10px 0;
+    text-align: left;
+    letter-spacing: 0.5px;
+  }
+#enemyCard {
+  display: none;
+  margin-top: 8px; /* was 0 — puts it under the “Opponent” title */
+}
+
+.stat-buttons {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.stat-buttons .stat-btn,
+.stat-buttons .stat-box {
+  background: #d8cbb3;
+  border-radius: 5px;
+  padding: 6px 8px;
+  border: 1px solid #8b6f4a;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.stat-buttons .stat-btn:hover { 
+  background: #c2b294; 
+  animation: buttonHover 0.3s ease;
+}
+
+.stat-buttons .stat-btn:active {
+  animation: buttonClick 0.2s ease;
+}
+
+.stat-buttons .stat-btn.active {
+  background: #f0e68c;
+  box-shadow: 0 0 8px 2px rgba(255, 255, 150, 0.8);
+  animation: buttonActive 0.5s ease forwards;
+}
+
+/* Enhanced button animations from example game */
+@keyframes buttonHover {
+  0% { 
+    transform: translate(0px, 0px) scale(1, 1); 
+    background: #d8cbb3;
+  }
+  100% { 
+    transform: translate(0px, -2px) scale(1.02, 1.02); 
+    background: #c2b294;
+  }
+}
+
+@keyframes buttonClick {
+  0% { 
+    transform: translate(0px, 0px) scale(1.02, 1.02); 
+  }
+  50% { 
+    transform: translate(0px, 1px) scale(0.98, 0.98); 
+  }
+  100% { 
+    transform: translate(0px, 0px) scale(1, 1); 
+  }
+}
+
+@keyframes buttonActive {
+  0% {
+    transform: translate(0px, 0px) scale(.95, 1.05);
+    background: #d8cbb3;
+  }
+  20% {
+    transform: translate(0px, 2px) scale(1.05, .95);
+    background: #e8d8c3;
+  }
+  100% {
+    transform: translate(0px, -2px) scale(1, 1);
+    background: #f0e68c;
+  }
+}
+
+.stat-card.glow {
+  box-shadow: 0 0 12px 4px rgba(0, 123, 255, 0.6);
+}
+
+.stat-card.targeted {
+  border: 3px solid #ff6b6b;
+  box-shadow: 0 0 15px 3px rgba(255, 107, 107, 0.7);
+}
+
+#followersContainer,
+#enemyFollowersContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.follower-card {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Battle Scene CSS */
+#battleContainer {
+    display: none;
+    text-align: center;
+    margin-top: 10px;
+    padding: 10px;
+    background: #e6e2d3;
+    border-radius: 12px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+    position: fixed;
+    top: 20%;
+    left: 15%;
+    width: 70%;
+    height: 55%;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+#playerCharacter, #furryCharacter {
+   margin: 5px;
+    padding: 8px;
+    border: 2px solid #8b6f4a;
+    border-radius: 8px;
+    display: inline-block;
+    width: 40%;
+    vertical-align: top;
+    box-sizing: border-box;
+    background: #d8cbb3;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
+}
+
+#playerCharacter {
+    text-align: center;
+}
+
+#furryCharacter {
+    text-align: center;
+}
+
+#battleOptions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 5px; /* Reduce gap between buttons */
+    margin-top: 10px; /* Reduce margin */
+}
+
+#battleOptions button {
+    padding: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: #a46a3f;
+    color: #f5f2e5;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: background-color 0.3s, transform 0.1s;
+}
+
+#battleOptions button:hover {
+    background-color: #8f5935;
+    animation: battleButtonHover 0.3s ease forwards;
+}
+
+#battleOptions button:active {
+    animation: battleButtonClick 0.2s ease;
+}
+
+/* Enhanced battle button animations */
+@keyframes battleButtonHover {
+  0% {
+    transform: translate(0px, 0px) scale(1, 1);
+    background-color: #a46a3f;
+  }
+  100% {
+    transform: translate(0px, -2px) scale(1.02, 1.02);
+    background-color: #8f5935;
+  }
+}
+
+@keyframes battleButtonClick {
+  0% {
+    transform: translate(0px, -2px) scale(1.02, 1.02);
+  }
+  50% {
+    transform: translate(0px, 1px) scale(0.98, 0.98);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1, 1);
+  }
+}
+
+/* Gentle pulse animation for active combat buttons */
+@keyframes gentlePulse {
+  0% {
+    box-shadow: 0 0 8px 2px rgba(255, 255, 150, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px rgba(255, 255, 150, 1.0);
+  }
+  100% {
+    box-shadow: 0 0 8px 2px rgba(255, 255, 150, 0.8);
+  }
+}
+
+/* Apply pulse to active buttons */
+.stat-btn.active.pulse {
+  animation: gentlePulse 2s ease-in-out infinite;
+}
+
+#fleeButton {
+    background-color: #6c8bb5;
+}
+
+#fleeButton:hover {
+    background-color: #557597;
+}
+
+.hp-bar, .flirt-bar, .hunger-bar {
+    width: 100%;
+    height: 16px;
+    border-radius: 8px;
+    margin: 4px 0 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.hp-bar, .flirt-bar { background-color: #6d5e49; }
+.hunger-bar { background-color: #8b6f4a; }
+
+.hp-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: #fff;
+    pointer-events: none;
+}
+
+.hunger-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: #fff;
+    pointer-events: none;
+}
+
+.flirt-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: #fff;
+    pointer-events: none;
+}
+
+.hp-fill {
+    height: 100%;
+    background: linear-gradient(to right, #d9776b, #b7483a);
+    width: 100%;
+    transition: width 0.3s ease;
+    border-radius: inherit;
+}
+
+.hunger-fill {
+    height: 100%;
+    background: linear-gradient(to right, #f0c45a, #c99700);
+    width: 100%;
+    transition: width 0.3s ease;
+    border-radius: inherit;
+}
+
+.flirt-fill {
+    height: 100%;
+    background-color: pink;
+    width: 0;
+    transition: width 0.3s ease;
+    border-radius: inherit;
+}
+
+@keyframes damage {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+.damage-effect {
+    animation: damage 0.3s;
+}
+
+@keyframes flash {
+    from { box-shadow: 0 0 12px 4px rgba(255, 0, 0, 0.7); }
+    to { box-shadow: 0 0 6px rgba(0,0,0,0.3); }
+}
+.flash-effect {
+    animation: flash 0.3s;
+}
+
+@keyframes fadeInLog {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.narrator-entry {
+  animation: fadeInLog 0.5s ease-in-out;
+}
+
+.narrator-section {
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #d0c4a6;
+}
+.narrator-section hr {
+    border: none;
+    border-top: 1px solid #d0c4a6;
+    margin: 4px 0 0 0;
+}
+
+#battleNarrator {
+    display: block;
+    overflow-y: auto;
+    margin: 20px;
+    padding: 8px;
+    background: #f5f2e5;
+    border: 2px solid #d0c4a6;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #5b4b3a;
+    text-align: left;
+    box-sizing: border-box;
+    font-family: "Courier New", monospace;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+/* Battle Narrator Text Animations */
+.narrator-fade {
+  display: inline;
+  opacity: 0;
+  animation: narratorFade 0.6s ease-in forwards;
+}
+
+.narrator-pop {
+  display: inline;
+  opacity: 0;
+  animation: narratorPop 0.5s cubic-bezier(.7,.18,.67,1.36) forwards;
+}
+
+.narrator-slide {
+  display: inline;
+  opacity: 0;
+  animation: narratorSlide 0.5s cubic-bezier(.56,0,.78,1.33) forwards;
+}
+
+.narrator-damage {
+  display: inline;
+  opacity: 0;
+  animation: narratorDamage 0.6s cubic-bezier(.3,.68,.6,1.6) forwards;
+  color: #d9534f;
+  font-weight: bold;
+}
+
+.narrator-heal {
+  display: inline;
+  opacity: 0;
+  animation: narratorHeal 0.5s ease-out forwards;
+  color: #5cb85c;
+  font-weight: bold;
+}
+
+.narrator-special {
+  display: inline;
+  opacity: 0;
+  animation: narratorSpecial 0.7s cubic-bezier(0,.84,.6,1) forwards;
+  color: #f0ad4e;
+  font-weight: bold;
+}
+
+.narrator-critical {
+  display: inline;
+  opacity: 0;
+  animation: narratorCritical 0.8s cubic-bezier(0,.84,.6,1) forwards;
+  color: #d9534f;
+  font-weight: bold;
+  text-shadow: 0 0 4px rgba(217, 83, 79, 0.5);
+}
+
+@keyframes narratorFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes narratorPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes narratorSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes narratorDamage {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.8);
+    color: #ffffff;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(5px) scale(1.1);
+    color: #ff6b6b;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    color: #d9534f;
+  }
+}
+
+@keyframes narratorHeal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+    color: #ffffff;
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.05);
+    color: #7ed87e;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    color: #5cb85c;
+  }
+}
+
+@keyframes narratorSpecial {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.5) rotate(-10deg);
+    color: #ffffff;
+  }
+  40% {
+    opacity: 0.8;
+    transform: translateX(10px) scale(1.1) rotate(2deg);
+    color: #ffcc5c;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+    color: #f0ad4e;
+  }
+}
+
+@keyframes narratorCritical {
+  0% {
+    opacity: 0;
+    transform: scale(0.1) rotate(-180deg);
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 1);
+  }
+  25% {
+    opacity: 0.7;
+    transform: scale(1.3) rotate(-90deg);
+    color: #ff3333;
+  }
+  50% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-45deg);
+    color: #ff6666;
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1.1) rotate(0deg);
+    color: #ff4444;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    color: #d9534f;
+    text-shadow: 0 0 4px rgba(217, 83, 79, 0.5);
+  }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);      opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0);      opacity: 1; }
+  to   { transform: translateX(-100%);  opacity: 0; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(100%);  opacity: 0; }
+}
+
+#playerGUI.slide-in {
+  animation: slideUp 0.5s forwards;
+}
+
+#playerGUI.slide-out {
+  animation: slideDown 0.5s forwards;
+}
+
+.stat-card.slide-in-left {
+  animation: slideInLeft 0.3s forwards;
+}
+
+.stat-card.slide-in-right {
+  animation: slideInRight 0.3s forwards;
+}
+
+.stat-card.slide-out-left {
+  animation: slideOutLeft 0.3s forwards;
+}
+
+.stat-card.slide-out-right {
+  animation: slideOutRight 0.3s forwards;
+}
+
+/* Unified outcome screen */
+#outcomeScreen {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  color: #f5f2e5;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 10;
+  backdrop-filter: blur(3px);
+}
+
+#outcomeScreen button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 18px;
+  cursor: pointer;
+  background: #6c8bb5;
+  color: #f5f2e5;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+#settingsBoard {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  background: rgba(230, 226, 211, 0.95);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+  transition: transform 0.5s ease;
+}
+
+
+#slotButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.save-slot {
+  padding: 10px 15px;
+  background-color: #8fbf5a;
+  color: #f5f2e5;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+.save-slot:hover {
+  background-color: #78a64b;
+}
+
+.save-slot:active {
+  transform: scale(0.97);
+}
+
+.save-slot.selected {
+  background-color: #78a64b;
+}
+
+#startGameBtn, #closeSettingsBtn {
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #8fbf5a;
+  color: #f5f2e5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+#startGameBtn:hover, #closeSettingsBtn:hover {
+  background-color: #78a64b;
+}
+
+#startGameBtn:active, #closeSettingsBtn:active {
+  transform: scale(0.97);
+}
+
+.type-badge {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.size-badge {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.settings-row .slider-label {
+  min-width: 32px;
+  font-size: 0.95em;
+  color: #a08b6a;
+  text-align: center;
+}
+
+.type-ground { background-color: #8f5935; }
+.type-flying { background-color: #4f81bd; }
+.type-water { background-color: #2b8c99; }
+
+.size-small { background-color: #6aa84f; }
+.size-medium { background-color: #d7b530; }
+.size-large { background-color: #d9534f; }
+
+</style>
+</head>
+<body>
+    <div id="startContainer">
+        <h1>Welcome to the Tile-Based Adventure Game</h1>
+        <button id="playButton">Play Game</button>
+    </div>
+
+    <!-- In-Game Menu Modal -->
+    <div id="gameMenuModal" aria-modal="true" role="dialog" style="display:none">
+      <div class="modal-card">
+        <h2>Game Menu</h2>
+        <div class="menu-actions">
+          <button id="resumeGameBtn" class="btn-primary">Resume</button>
+          <div class="volume-controls">
+            <label>Music Volume:</label>
+            <input type="range" id="musicVolumeSlider" min="0" max="100" value="50" />
+            <span id="musicVolumeDisplay">50%</span>
+          </div>
+          <div class="volume-controls">
+            <label>Sound Effects Volume (includes tile sounds):</label>
+            <input type="range" id="sfxVolumeSlider" min="0" max="100" value="50" />
+            <span id="sfxVolumeDisplay">50%</span>
+          </div>
+          <button id="menuBackToMainBtn" class="btn-danger">Back to Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Slots Window -->
+    <div id="slotsWindow" aria-modal="true" role="dialog" style="display:none">
+      <div class="modal-card">
+        <h2>Choose Save Slot</h2>
+        <p class="sub">Pick a slot to continue or start a new world.</p>
+        <div id="slotsGrid" class="slots-grid"></div>
+        <div class="modal-actions">
+          <button id="closeSlotsBtn" class="btn-secondary">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- World Settings (per-slot) -->
+    <div id="worldSettingsModal" aria-modal="true" role="dialog" style="display:none">
+      <div class="modal-card">
+        <h2 id="wsTitle">World Settings</h2>
+        <div class="ws-row"><span class="ws-label">Slot:</span> <span id="wsSlotLabel"></span></div>
+
+        <label class="ws-label" for="wsPlayerName">Player Name</label>
+        <input id="wsPlayerName" type="text" />
+
+        <label class="ws-label" for="wsMapSize">World Size</label>
+        <select id="wsMapSize">
+          <option value="100">100 x 100</option>
+          <option value="200">200 x 200</option>
+          <option value="300">300 x 300</option>
+          <option value="400">400 x 400</option>
+          <option value="500">500 x 500</option>
+          <option value="600">600 x 600</option>
+          <option value="700">700 x 700</option>
+          <option value="800">800 x 800</option>
+          <option value="900">900 x 900</option>
+          <option value="1000">1000 x 1000</option>
+        </select>
+
+        <label class="ws-label" for="wsMode">Game Mode</label>
+        <select id="wsMode">
+          <option value="peaceful">Peaceful</option>
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+
+        <div class="ws-row">
+          <label class="ws-label" for="wsAutosave">
+            <input type="checkbox" id="wsAutosave" checked /> Enable Autosave
+          </label>
+        </div>
+
+        <div class="ws-row">
+          <label class="ws-label" for="wsKeepProgress">
+            <input type="checkbox" id="wsKeepProgress" checked /> Keep Progress on Death
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="wsContinueBtn" class="btn-primary" style="display:none">Continue</button>
+          <button id="wsStartBtn" class="btn-primary">Start New</button>
+          <button id="wsDeleteBtn" class="btn-danger" style="display:none">Delete Save</button>
+          <button id="wsCancelBtn" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div id="gameContainer">
+      <div id="topLeftUI">
+        <button id="gameMenuBtn">Menu</button>
+        <button id="manualSaveBtn">Save</button>
+        <div id="furryCounter">Furries: 0</div>
+      </div>
+<style>
+#topLeftUI {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(229, 215, 184, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  padding: 10px 16px 12px 16px;
+}
+#gameMenuBtn, #manualSaveBtn {
+  background: #e5d7b8;
+  border: 2px solid #b09a6b;
+  border-radius: 8px;
+  padding: 6px 18px;
+  font-size: 16px;
+  color: #5b4b3a;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  transition: background 0.2s, transform 0.1s;
+}
+#gameMenuBtn {
+  background: #d4b7e5;
+  border-color: #9b6bb0;
+}
+#gameMenuBtn:hover {
+  background: #c4a0d4;
+  border-color: #8a5e9c;
+}
+#gameMenuBtn:disabled, #manualSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#manualSaveBtn:hover {
+  background: #d4c2a0;
+  border-color: #9c8a5e;
+}
+#gameMenuBtn {
+  background: #d4b7e5;
+  border-color: #9b6bb0;
+}
+#gameMenuBtn:hover {
+  background: #c4a0d4;
+  border-color: #8a5e9c;
+}
+#gameMenuBtn:disabled, #manualSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#manualSaveBtn:hover {
+  background: #d4c2a0;
+  border-color: #9c8a5e;
+}
+#manualSaveBtn.saving {
+  background: #b6e5b8;
+  color: #2d5b2d;
+  animation: savePulse 0.7s;
+}
+@keyframes savePulse {
+  0% { box-shadow: 0 0 0 0 #b6e5b8; }
+  70% { box-shadow: 0 0 0 8px rgba(182,229,184,0.5); }
+  100% { box-shadow: 0 0 0 0 #b6e5b8; }
+}
+#furryCounter {
+  margin: 0;
+  padding: 6px 14px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 18px;
+  font-family: sans-serif;
+  z-index: 19;
+  width: max-content;
+  display: none;
+}
+
+#playerCard {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f4f1ea;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* In-Game Menu Modal */
+#gameMenuModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000; /* Higher than minimap and all other UI elements */
+}
+
+#gameMenuModal .modal-card {
+  background: #f5f2e5;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  min-width: 300px;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.volume-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.volume-controls label {
+  font-weight: bold;
+  color: #5b4b3a;
+}
+
+.volume-controls input[type="range"] {
+  width: 100%;
+}
+
+.volume-controls span {
+  font-size: 14px;
+  color: #8b7b6a;
+}
+
+/* Save Notification Popup Styles */
+.save-popup {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.save-popup.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.save-popup.auto {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+.save-popup.manual {
+    background: linear-gradient(135deg, #4CAF50, #388E3C);
+}
+
+.save-popup::before {
+    content: '💾';
+    font-size: 16px;
+}
+
+.save-popup.auto::before {
+    content: '⚡';
+    font-size: 16px;
+}
+
+@keyframes savePopupPulse {
+    0% { transform: translateX(-50%) translateY(0) scale(1); }
+    50% { transform: translateX(-50%) translateY(0) scale(1.05); }
+    100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.save-popup.show {
+    animation: savePopupPulse 0.6s ease-out;
+}
+
+</style>
+  <div id="board">
+            <h3>Player</h3>
+            <div id="playerCard" class="stat-card">
+            <h3 id="playerName"></h3>
+            <div class="hp-bar">
+                <div id="playerHPBar" class="hp-fill"></div>
+                <span id="playerHPText" class="hp-text">100/100</span>
+            </div>
+            <div class="hunger-bar">
+                <div id="playerHungerBar" class="hunger-fill"></div>
+                <span id="playerHungerText" class="hunger-text">100</span>
+            </div>
+            <div id="xpBar" class="stat-bar">
+                <div id="playerXPBar" class="stat-bar-fill"></div>
+                <span id="playerXPText" class="bar-text">0/100</span>
+            </div>
+            <div>Lvl: <span id="playerLevelText">1</span></div>
+            <div class="stat-buttons">
+            <button id="playerFightBtn" data-action="fight" class="stat-btn">Fight <span id="playerFightVal">15</span></button>
+            <button data-action="flirt" class="stat-btn">Flirt <span id="playerFlirtVal">15</span></button>
+            <button data-action="feast" class="stat-btn">Feast <span id="playerFeastVal">15</span></button>
+            <button data-action="fuck" class="stat-btn">Fuck <span id="playerFunVal">20</span></button>
+            <button id="playerFleeBtn" data-action="flee" class="stat-btn">Flee <span id="playerFleeVal">20</span></button>
+            <button data-action="feed" class="stat-btn">Feed <span id="playerFeedVal">10</span></button>
+            </div>
+        </div>
+        <h3>Followers</h3>
+        <div id="followersContainer"></div>
+        </div>
+  <div id="map"></div>
+  <canvas id="minimap" width="220" height="220"></canvas>
+  <div id="battleNarrator">
+    <button id="narratorSettingsGear" title="Settings">⚙️</button>
+    <div id="narratorSettingsPanel" style="display:none;">
+      <div class="settings-header">Narrator Settings</div>
+      <div class="settings-row">
+  <label for="narrationSpeedSlider">Narration Speed</label>
+  <span class="slider-label">0.5x</span>
+  <input type="range" id="narrationSpeedSlider" min="0.5" max="5" step="0.01" value="1">
+  <span class="slider-label">5x</span>
+  <span id="narrationSpeedValue">1.0s</span>
+</div>
+      <div class="settings-row">
+  <label for="narrationSizeSlider">Text Size</label>
+  <span class="slider-label">0.5x</span>
+  <input type="range" id="narrationSizeSlider" min="0.5" max="2" step="0.01" value="1">
+  <span class="slider-label">2x</span>
+  <span id="narrationSizeValue">1.0x</span>
+</div>
+      <div class="settings-row">
+  <label for="settingsScaleSlider">Panel Scale</label>
+  <span class="slider-label">0.5x</span>
+  <input type="range" id="settingsScaleSlider" min="0.5" max="2" step="0.01" value="1">
+  <span class="slider-label">2x</span>
+  <span id="settingsScaleValue">1.0x</span>
+</div>
+    </div>
+    <div id="narratorLog"></div>
+  </div>
+  <div id="enemyBoard">
+  <h3>Opponent</h3>
+  <div id="enemyEmptyHint">no one is here</div>
+      <div id="enemyCard" class="stat-card">
+        <div id="encounteredFurry" class="card-title">Furry</div>
+        <div id="furryTypeBadge" class="type-badge"></div>
+        <div id="furrySizeBadge" class="size-badge"></div>
+        <div class="hp-bar">
+          <div id="enemyHPBar" class="hp-fill"></div>
+          <span id="enemyHP" class="hp-text">0/0</span>
+        </div>
+        <div class="flirt-bar">
+          <div id="enemyFlirtBar" class="flirt-fill"></div>
+          <span id="enemyFlirtText" class="flirt-text">0</span>
+        </div>
+        <div class="stat-buttons">
+          <button class="stat-btn enemy-stat" disabled>Fight <span id="enemyFightVal">0</span></button>
+          <button class="stat-btn enemy-stat" disabled>Flirt <span id="enemyFlirtVal">0</span></button>
+          <button class="stat-btn enemy-stat" disabled>Feast <span id="enemyFeastVal">0</span></button>
+          <button class="stat-btn enemy-stat" disabled>Fuck <span id="enemyFuckVal">0</span></button>
+          <button class="stat-btn enemy-stat" disabled>Flee <span id="enemyFleeVal">0</span></button>
+          <button class="stat-btn enemy-stat" disabled>Feed <span id="enemyFeedVal">0</span></button>
+        </div>
+      </div>
+      <div id="enemyFollowersContainer"></div>
+  </div>
+    </div>
+  <!-- minimap moved above enemy board -->
+    <div id="outcomeScreen">
+        <p id="outcomeMessage"></p>
+        <button id="outcomeContinue">Continue</button>
+    </div>
+    
+    <!-- Death Screen for Keep Progress feature -->
+    <div id="deathScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; color: white; text-align: center;">
+        <h2 id="deathMessage">You have been defeated...</h2>
+        <p id="deathSubtext">Choose your fate:</p>
+        <div style="display: flex; gap: 20px; margin-top: 20px;">
+            <button id="deathReviveBtn" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Revive</button>
+            <button id="deathMainMenuBtn" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Main Menu</button>
+        </div>
+    </div>
+
+    <div id="screenOverlay"></div>
+    
+    <!-- Save Notification Popup -->
+    <div id="saveNotification" class="save-popup">
+        <span id="saveNotificationText">Game Saved</span>
+    </div>
+    
+    <script>
+    // Staggered reveal for enemy cards
+    (function () {
+      const STAGGER_STEP = 80; // ms between each card’s start
+      function revealEnemyCardsStaggered() {
+        const board = document.getElementById('enemyBoard');
+        if (!board) return;
+        const cards = Array.from(
+          board.querySelectorAll('.stat-card')
+        ).filter(el => el.offsetParent !== null || el.style.display !== 'none');
+        cards.forEach(el => {
+          if (getComputedStyle(el).display === 'none') {
+            el.style.display = 'block';
+          }
+          el.classList.remove('reveal', 'slide-in-right', 'slide-in-left');
+          el.style.removeProperty('--delay');
+        });
+        cards.forEach((el, i) => {
+          el.style.setProperty('--delay', `${(i * STAGGER_STEP) / 1000}s`);
+          void el.offsetWidth;
+          el.classList.add('reveal');
+        });
+      }
+      window.revealEnemyCardsStaggered = revealEnemyCardsStaggered;
+    })();
+
+    // Show/hide the empty hint
+    function setEnemyEmptyHint(isEmpty) {
+      const hint = document.getElementById('enemyEmptyHint');
+      if (!hint) return;
+      hint.style.display = isEmpty ? 'block' : 'none';
+    }
+    window.setEnemyEmptyHint = setEnemyEmptyHint;
+    
+    // Handle minimap expansion and enemy board animation
+    const minimap = document.getElementById('minimap');
+    const enemyBoard = document.getElementById('enemyBoard');
+    
+    if (minimap && enemyBoard) {
+      // Create observer to watch for minimap class changes
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            const isExpanded = minimap.classList.contains('expanded');
+            if (isExpanded) {
+              enemyBoard.classList.add('minimap-expanded');
+            } else {
+              enemyBoard.classList.remove('minimap-expanded');
+            }
+          }
+        });
+      });
+      
+      observer.observe(minimap, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+    </script>
+  <script type="module" src="game.js"></script>
+  <script type="module" src="slots.js"></script>
+  <script type="module" src="furries.js"></script>
+</body>
+<script>
+// Show UI elements only in game, not on main menu
+document.addEventListener('DOMContentLoaded', function() {
+  // Save notification system
+  function showSaveNotification(message, type = 'manual') {
+    const notification = document.getElementById('saveNotification');
+    const text = document.getElementById('saveNotificationText');
+    
+    if (!notification || !text) return;
+    
+    // Clear any existing classes and timeouts
+    notification.classList.remove('show', 'auto', 'manual');
+    
+    // Set the message and type
+    text.textContent = message;
+    notification.classList.add(type);
+    
+    // Show the notification
+    setTimeout(() => {
+      notification.classList.add('show');
+    }, 50);
+    
+    // Hide after 1 second
+    setTimeout(() => {
+      notification.classList.remove('show');
+    }, 1000);
+  }
+  
+  // Expose globally for use by save functions
+  window.showSaveNotification = showSaveNotification;
+  
+  const menuBtn = document.getElementById('gameMenuBtn');
+  const saveBtn = document.getElementById('manualSaveBtn');
+  const furryCounter = document.getElementById('furryCounter');
+  const gameContainer = document.getElementById('gameContainer');
+  const startContainer = document.getElementById('startContainer');
+  const gameMenuModal = document.getElementById('gameMenuModal');
+  function canManualSave() {
+    const hasQuickSave = typeof window.quickAutosave === 'function';
+    const hasSlot = window.currentSaveSlot !== null && window.currentSaveSlot !== undefined;
+    
+    // Debug logging
+    if (!hasQuickSave) console.warn('[MANUAL SAVE] quickAutosave function not available');
+    if (!hasSlot) console.warn('[MANUAL SAVE] No save slot selected, current slot:', window.currentSaveSlot);
+    
+    return hasQuickSave && hasSlot;
+  }
+  function updateTopLeftUI() {
+    const inGame = (gameContainer && gameContainer.style.display === 'flex');
+    if (menuBtn) {
+      menuBtn.style.display = inGame ? 'block' : 'none';
+    }
+    if (saveBtn) {
+      saveBtn.style.display = inGame ? 'block' : 'none';
+      saveBtn.disabled = !canManualSave();
+      saveBtn.title = canManualSave() ? '' : 'No save slot selected! Start or continue a game from a slot.';
+    }
+    if (furryCounter) {
+      furryCounter.style.display = inGame ? 'block' : 'none';
+    }
+  }
+  setInterval(updateTopLeftUI, 300);
+  if (saveBtn) {
+    let saving = false;
+    saveBtn.onclick = function() {
+      if (saving) return;
+      if (canManualSave()) {
+        saving = true;
+        saveBtn.disabled = true;
+        
+        // Set flag to prevent auto-save notification during manual save
+        window.isManualSaveInProgress = true;
+        
+        // Ensure game state is synced before manual save
+        if (typeof window.syncGameStateForSave === 'function') {
+          window.syncGameStateForSave();
+        }
+        
+        window.quickAutosave(); // Synchronous, so save is done after this line
+        
+        // Clear the flag and show manual save notification
+        window.isManualSaveInProgress = false;
+        if (typeof window.showSaveNotification === 'function') {
+          window.showSaveNotification('Game Saved Manually', 'manual');
+        }
+        
+        saveBtn.textContent = 'Saved!';
+        saveBtn.classList.add('saving');
+        
+        // Add console log for debugging
+        console.log('[MANUAL SAVE] Game saved to slot:', window.currentSaveSlot);
+        
+        setTimeout(() => {
+          saveBtn.textContent = 'Save';
+          saveBtn.classList.remove('saving');
+          saveBtn.disabled = false;
+          saving = false;
+        }, 900);
+      } else {
+        saveBtn.textContent = 'No Slot!';
+        saveBtn.classList.add('saving');
+        setTimeout(() => {
+          saveBtn.textContent = 'Save';
+          saveBtn.classList.remove('saving');
+        }, 900);
+      }
+    };
+  }
+  
+  // Game menu functionality
+  function toggleGameMenu(show) {
+    if (!gameMenuModal) return;
+    
+    if (show) {
+      gameMenuModal.style.display = 'flex';
+      // Disable all UI interactions by preventing events
+      document.body.style.pointerEvents = 'none';
+      gameMenuModal.style.pointerEvents = 'auto'; // Only menu can be clicked
+    } else {
+      gameMenuModal.style.display = 'none';
+      // Re-enable all UI interactions
+      document.body.style.pointerEvents = 'auto';
+    }
+  }
+  
+  if (menuBtn) {
+    menuBtn.onclick = function() {
+      toggleGameMenu(true);
+    };
+  }
+  
+  // Game menu modal controls
+  const resumeBtn = document.getElementById('resumeGameBtn');
+  const backToMainBtn = document.getElementById('menuBackToMainBtn');
+  const musicSlider = document.getElementById('musicVolumeSlider');
+  const sfxSlider = document.getElementById('sfxVolumeSlider');
+  const musicDisplay = document.getElementById('musicVolumeDisplay');
+  const sfxDisplay = document.getElementById('sfxVolumeDisplay');
+  
+  if (resumeBtn) {
+    resumeBtn.onclick = function() {
+      toggleGameMenu(false);
+    };
+  }
+  
+  if (backToMainBtn) {
+    backToMainBtn.onclick = function() {
+      if (confirm('Return to main menu? Your progress will be automatically saved.')) {
+        // Auto-save before going back
+        if (canManualSave()) {
+          window.quickAutosave();
+        }
+        // Hide game container and show start container
+        if (gameContainer) gameContainer.style.display = 'none';
+        if (startContainer) startContainer.style.display = 'flex';
+        if (gameMenuModal) toggleGameMenu(false);
+        
+        // Stop minimap animation when returning to main menu
+        if (typeof window.stopMinimapAnimation === 'function') {
+          window.stopMinimapAnimation();
+        }
+        
+        // Stop any running timers to prevent background activity
+        if (typeof window.stopGameTimers === 'function') {
+          window.stopGameTimers();
+        }
+      }
+    };
+  }
+  
+  // Volume controls
+  if (musicSlider && musicDisplay) {
+    musicSlider.oninput = function() {
+      musicDisplay.textContent = this.value + '%';
+      // TODO: Apply music volume when music system is implemented
+    };
+  }
+  
+  if (sfxSlider && sfxDisplay) {
+    sfxSlider.oninput = function() {
+      sfxDisplay.textContent = this.value + '%';
+      // TODO: Apply SFX volume to tile hover sounds
+    };
+  }
+  
+  // Close menu when clicking outside
+  if (gameMenuModal) {
+    gameMenuModal.onclick = function(e) {
+      if (e.target === gameMenuModal) {
+        toggleGameMenu(false);
+      }
+    };
+  }
+  
+  // Close menu with ESC key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && gameMenuModal && gameMenuModal.style.display === 'flex') {
+      toggleGameMenu(false);
+    }
+  });
+});
+</script>
+</body>
+</html>
