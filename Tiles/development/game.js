@@ -4340,7 +4340,7 @@ function performPostLoadSafetyCheck(loadSaveData) {
     
     // Force UI update after safety checks
     updatePlayerStatsDisplay();
-    render();
+    renderMap();
     
     console.log('[POST-LOAD] Safety check complete - Player HP:', playerStats.hp, '/', playerStats.maxHp, 'Position:', playerPosition);
 }
