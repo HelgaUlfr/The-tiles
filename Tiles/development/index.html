@@ -12,10 +12,11 @@ body {
     background: linear-gradient(#e8f5e9, #f5f2e5);
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 100vh;
+    align-items: flex-start;
+    min-height: 100vh;
     margin: 0;
-    user-select: none; /* Prevent text selection */
+    overflow: auto;
+    user-select: none;
     color: #3b2f2f;
     transition: background-color 0.5s;
 }
@@ -40,7 +41,12 @@ body {
 #gameContainer {
     align-items: flex-start;
     flex-wrap: nowrap;
-    gap: 20px;
+    justify-content: center;
+    width: 100%;
+    min-height: 100vh;
+    padding-top: 10px;
+    padding-bottom: 40px;
+    box-sizing: border-box;
 }
 
 #startContainer {
@@ -196,7 +202,7 @@ body {
 #map {
     display: none;
     grid-gap: 2px;
-    margin: 20px;
+    margin: 0;
     background: rgb(77, 58, 42);
     padding: 10px;
     border-radius: 10px;
@@ -204,53 +210,67 @@ body {
     position: relative;
     z-index: 2;
     --brightness: 1;
+    flex-shrink: 0;
 }
 
-/* Minimap wrapper — fixed frame around canvas */
-#minimapWrapper {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  display: none;
-  z-index: 1000;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid #7a5c3a;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,200,100,0.12);
-  transition: width 0.25s ease, height 0.25s ease;
+/* ── Map column: center column containing map, minimap, narrator ── */
+#mapColumn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 10px 10px 20px;
 }
-#minimapHeader {
-  background: linear-gradient(to bottom, #3d2710, #5a3a1e);
-  color: #e8d098;
-  padding: 6px 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 9px;
-  font-weight: bold;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  cursor: pointer;
-  user-select: none;
-  font-family: Georgia, serif;
-  border-bottom: 1px solid #7a5c3a;
+
+#mapViewToggle {
+    display: none; /* shown by JS when game starts */
+    justify-content: center;
+    margin-bottom: 8px;
+    position: sticky;
+    top: 8px;
+    z-index: 20;
 }
-#minimapExpandHint {
-  opacity: 0.55;
-  font-size: 8px;
-  font-weight: normal;
-  letter-spacing: 0;
-  text-transform: none;
+
+#minimapViewBtn {
+    background: linear-gradient(to bottom, #3d2710, #5a3a1e);
+    color: #e8d098;
+    border: 2px solid #7a5c3a;
+    border-radius: 8px;
+    padding: 5px 16px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    font-weight: bold;
+    font-family: Georgia, serif;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    transition: background 0.2s, transform 0.1s;
 }
+#minimapViewBtn:hover {
+    background: linear-gradient(to bottom, #5a3a1e, #3d2710);
+    transform: translateY(-1px);
+}
+
+#mapViewArea {
+    display: flex;
+    justify-content: center;
+    width: auto;
+}
+
+/* Minimap fullview mode: fills same visual space as map */
+#minimap.fullview {
+    display: block;
+    border-radius: 10px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.2);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #12100e;
+    border: 6px solid rgb(77, 58, 42);
+    box-sizing: border-box;
+}
+
 #minimap {
-  display: block;
+  display: none;
   background: #12100e;
-  width: 220px;
-  height: 220px;
-}
-#minimap.expanded {
-  width: 440px;
-  height: 440px;
 }
 
 .tile {
@@ -584,11 +604,6 @@ body {
 
 #enemyBoard::-webkit-scrollbar { display: none; }
 
-/* Enemy board position when minimap is expanded */
-#enemyBoard.minimap-expanded {
-  right: 468px;
-  transform: translateY(-50%);
-}
 
 /* Responsive adjustments */
 @media (max-height: 600px) {
@@ -598,7 +613,6 @@ body {
 @media (max-width: 768px) {
   #board { left: 8px; width: 210px; }
   #enemyBoard { right: 8px; width: 210px; }
-  #enemyBoard.minimap-expanded { right: 380px; }
 }
 
 /* Small empty hint styling */
@@ -976,31 +990,36 @@ body {
 }
 
 #battleNarrator {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(520px, 52vw);
+  position: relative;
+  width: 100%;
   max-height: 210px;
-  background: linear-gradient(to bottom, #1a0f07ee, #2a1a0aee);
+  background: #1e1208;
   border: 2px solid #7a5c3a;
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,200,100,0.1);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   color: #e8d098;
   text-align: left;
   box-sizing: border-box;
   font-family: "Courier New", monospace;
   font-size: 13px;
-  z-index: 50;
   display: none;
-  overflow: hidden;
-  backdrop-filter: blur(6px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #7a5c3a transparent;
 }
+#battleNarrator::-webkit-scrollbar { width: 4px; }
+#battleNarrator::-webkit-scrollbar-track { background: transparent; }
+#battleNarrator::-webkit-scrollbar-thumb { background: #7a5c3a; border-radius: 4px; }
 
-#battleNarrator::before {
-  content: "📖 NARRATOR";
-  display: block;
-  padding: 5px 12px;
+#narratorHeader {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
   background: linear-gradient(to bottom, #3d2710, #5a3a1e);
   color: #e8d098;
   font-size: 9px;
@@ -1008,30 +1027,19 @@ body {
   font-weight: bold;
   font-family: Georgia, serif;
   border-bottom: 1px solid #7a5c3a;
+  z-index: 1;
 }
 
 #narratorLog {
-  max-height: 150px;
-  overflow-y: auto;
   padding: 8px 12px;
-  scrollbar-width: thin;
-  scrollbar-color: #7a5c3a transparent;
 }
 
-#narratorLog::-webkit-scrollbar { width: 4px; }
-#narratorLog::-webkit-scrollbar-track { background: transparent; }
-#narratorLog::-webkit-scrollbar-thumb { background: #7a5c3a; border-radius: 4px; }
-
 #narratorSettingsGear {
-  position: absolute;
-  top: 4px;
-  right: 8px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 13px;
-  padding: 2px 4px;
-  z-index: 2;
+  padding: 0 2px;
   opacity: 0.7;
   line-height: 1;
 }
@@ -1879,39 +1887,49 @@ body {
         <h3>Followers</h3>
         <div id="followersContainer"></div>
         </div>
-  <div id="map"></div>
-  <canvas id="minimap" width="220" height="220"></canvas>
-  <div id="battleNarrator">
-    <button id="narratorSettingsGear" title="Settings">⚙️</button>
-    <div id="narratorChoices" style="display:none;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0;">
-      <button id="eventChoiceA" class="choice-btn"></button>
-      <button id="eventChoiceB" class="choice-btn"></button>
+  <div id="mapColumn">
+    <div id="mapViewToggle">
+      <button id="minimapViewBtn" title="Toggle minimap view">🗺 Minimap</button>
     </div>
-    <div id="narratorSettingsPanel" style="display:none;">
-      <div class="settings-header">Narrator Settings</div>
-      <div class="settings-row">
-  <label for="narrationSpeedSlider">Narration Speed</label>
-  <span class="slider-label">0.5x</span>
-  <input type="range" id="narrationSpeedSlider" min="0.5" max="5" step="0.01" value="1">
-  <span class="slider-label">5x</span>
-  <span id="narrationSpeedValue">1.0s</span>
-</div>
-      <div class="settings-row">
-  <label for="narrationSizeSlider">Text Size</label>
-  <span class="slider-label">0.5x</span>
-  <input type="range" id="narrationSizeSlider" min="0.5" max="2" step="0.01" value="1">
-  <span class="slider-label">2x</span>
-  <span id="narrationSizeValue">1.0x</span>
-</div>
-      <div class="settings-row">
-  <label for="settingsScaleSlider">Panel Scale</label>
-  <span class="slider-label">0.5x</span>
-  <input type="range" id="settingsScaleSlider" min="0.5" max="2" step="0.01" value="1">
-  <span class="slider-label">2x</span>
-  <span id="settingsScaleValue">1.0x</span>
-</div>
+    <div id="mapViewArea">
+      <div id="map"></div>
+      <canvas id="minimap" width="220" height="220" style="display:none;"></canvas>
     </div>
-    <div id="narratorLog"></div>
+    <div id="battleNarrator">
+      <div id="narratorHeader">
+        <span>📖 NARRATOR</span>
+        <button id="narratorSettingsGear" title="Settings">⚙️</button>
+      </div>
+      <div id="narratorChoices" style="display:none;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0;">
+        <button id="eventChoiceA" class="choice-btn"></button>
+        <button id="eventChoiceB" class="choice-btn"></button>
+      </div>
+      <div id="narratorSettingsPanel" style="display:none;">
+        <div class="settings-header">Narrator Settings</div>
+        <div class="settings-row">
+          <label for="narrationSpeedSlider">Narration Speed</label>
+          <span class="slider-label">0.5x</span>
+          <input type="range" id="narrationSpeedSlider" min="0.5" max="5" step="0.01" value="1">
+          <span class="slider-label">5x</span>
+          <span id="narrationSpeedValue">1.0s</span>
+        </div>
+        <div class="settings-row">
+          <label for="narrationSizeSlider">Text Size</label>
+          <span class="slider-label">0.5x</span>
+          <input type="range" id="narrationSizeSlider" min="0.5" max="2" step="0.01" value="1">
+          <span class="slider-label">2x</span>
+          <span id="narrationSizeValue">1.0x</span>
+        </div>
+        <div class="settings-row">
+          <label for="settingsScaleSlider">Panel Scale</label>
+          <span class="slider-label">0.5x</span>
+          <input type="range" id="settingsScaleSlider" min="0.5" max="2" step="0.01" value="1">
+          <span class="slider-label">2x</span>
+          <span id="settingsScaleValue">1.0x</span>
+        </div>
+      </div>
+      <div id="narratorLog"></div>
+    </div>
   </div>
   <div id="enemyBoard">
   <h3>Opponent</h3>
@@ -1940,7 +1958,6 @@ body {
       <div id="enemyFollowersContainer"></div>
   </div>
     </div>
-  <!-- minimap moved above enemy board -->
 
   <!-- Inventory Panel (slide-up from bottom) -->
   <div id="inventoryPanel" class="collapsed">
@@ -2036,30 +2053,97 @@ body {
     }
     window.setEnemyEmptyHint = setEnemyEmptyHint;
     
-    // Handle minimap expansion and enemy board animation
-    const minimap = document.getElementById('minimap');
-    const enemyBoard = document.getElementById('enemyBoard');
-    
-    if (minimap && enemyBoard) {
-      // Create observer to watch for minimap class changes
-      const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            const isExpanded = minimap.classList.contains('expanded');
-            if (isExpanded) {
-              enemyBoard.classList.add('minimap-expanded');
-            } else {
-              enemyBoard.classList.remove('minimap-expanded');
-            }
+    // ── Map / Minimap toggle ──────────────────────────────────────
+    (function () {
+      var inMinimapView = false;
+      var mapSnapshot = { w: 0, h: 0 };
+
+      function getMapSize() {
+        var mapEl = document.getElementById('map');
+        if (!mapEl) return { w: 500, h: 500 };
+        var r = mapEl.getBoundingClientRect();
+        return r.width > 0 ? { w: r.width, h: r.height } : mapSnapshot;
+      }
+
+      function applyView(showMinimap) {
+        inMinimapView = showMinimap;
+        var mapEl      = document.getElementById('map');
+        var minimapEl  = document.getElementById('minimap');
+        var btn        = document.getElementById('minimapViewBtn');
+        if (!mapEl || !minimapEl) return;
+
+        if (showMinimap) {
+          // Snapshot map dimensions before hiding
+          var sz = getMapSize();
+          if (sz.w > 0) mapSnapshot = sz;
+          var fw = mapSnapshot.w || 500;
+          var fh = mapSnapshot.h || 500;
+
+          mapEl.style.display = 'none';
+          minimapEl.style.cssText = [
+            'display:block',
+            'width:' + fw + 'px',
+            'height:' + fh + 'px',
+            'image-rendering:pixelated',
+            'image-rendering:crisp-edges',
+            'border-radius:10px',
+            'border:6px solid rgb(77,58,42)',
+            'background:#12100e',
+            'box-sizing:border-box',
+            'box-shadow:0 0 6px rgba(0,0,0,0.2)'
+          ].join(';');
+          minimapEl.classList.add('fullview');
+          if (btn) btn.textContent = '🗺 Back to Map';
+        } else {
+          minimapEl.style.cssText = 'display:none';
+          minimapEl.classList.remove('fullview');
+          // Let game.js restore the map display via its own logic
+          if (mapEl.dataset.wasGrid) {
+            mapEl.style.display = 'grid';
           }
+          if (btn) btn.textContent = '🗺 Minimap';
+        }
+      }
+
+      // Intercept minimap canvas click in fullview mode so game.js size-toggle doesn't fire
+      var minimapEl = document.getElementById('minimap');
+      if (minimapEl) {
+        minimapEl.addEventListener('click', function (e) {
+          if (inMinimapView) e.stopImmediatePropagation();
+        }, true);
+      }
+
+      // Watch for gameContainer becoming visible to show toggle button + hide minimap
+      var gameContainer = document.getElementById('gameContainer');
+      var mapViewToggle  = document.getElementById('mapViewToggle');
+      if (gameContainer && mapViewToggle) {
+        var gcObs = new MutationObserver(function () {
+          var visible = gameContainer.style.display !== 'none' && gameContainer.style.display !== '';
+          mapViewToggle.style.display = visible ? 'flex' : 'none';
+          if (visible && !inMinimapView) {
+            // game.js sets minimapEl display:block synchronously;
+            // hide it after the current JS execution stack clears
+            setTimeout(function () {
+              if (!inMinimapView) {
+                var mm = document.getElementById('minimap');
+                if (mm) mm.style.cssText = 'display:none';
+              }
+            }, 0);
+            var mapEl = document.getElementById('map');
+            if (mapEl) mapEl.dataset.wasGrid = '1';
+          }
+          if (!visible) inMinimapView = false;
         });
-      });
-      
-      observer.observe(minimap, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
-    }
+        gcObs.observe(gameContainer, { attributes: true, attributeFilter: ['style'] });
+      }
+
+      var btn = document.getElementById('minimapViewBtn');
+      if (btn) {
+        btn.addEventListener('click', function () { applyView(!inMinimapView); });
+      }
+
+      window.applyMapView = applyView;
+    })();
     </script>
   <script type="module" src="game.js"></script>
   <script type="module" src="slots.js"></script>
