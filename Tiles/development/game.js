@@ -49,6 +49,9 @@ export function syncGameStateForSave() {
     window.enemyGroup = enemyGroup;
     window.isPlayerDead = isPlayerDead;
     window.findSafeSpawnLocation = findSafeSpawnLocation;
+    window.playerInventory = playerInventory;
+    window.playerEquipment = playerEquipment;
+    window._nextItemId = _nextItemId;
 }
 window.syncGameStateForSave = syncGameStateForSave;
 
@@ -165,7 +168,7 @@ function narrateTile(tileType) {
 }
 
 function getCurrentTileType() {
-    // Assumes playerPosition and map are defined
+    if (!map.length || !map[playerPosition.x]) return 'grass';
     return map[playerPosition.x][playerPosition.y] || 'grass';
 }
 
@@ -3813,7 +3816,7 @@ function playerFeast() {
         currentEncounterKey = null;
         renderMap();
     } else {
-        updateNarrator(NarratorLines.feastFail);
+        updateNarrator(NarratorLines.feastFail(currentFurry.type));
         if (!currentFurry.hostile && gameMode !== 'peaceful') {
             makeEnemyHostile();
         }
@@ -4397,6 +4400,8 @@ export function startGame(loadSaveData) {
     if (outcome) outcome.style.display = 'none';
     const narrator = document.getElementById('battleNarrator');
     if (narrator) narrator.style.display = 'block';
+    const invPanel = document.getElementById('inventoryPanel');
+    if (invPanel) invPanel.style.display = 'block';
 
     // Always sync worldSeed, playerPosition, playerStats, totalTilesWalked, and persistentEncounters to window for saving
     window.worldSeed = worldSeed;
@@ -4423,6 +4428,23 @@ export function startGame(loadSaveData) {
         if (loadSaveData.playerStats) Object.assign(playerStats, loadSaveData.playerStats);
         if (typeof loadSaveData.xp === 'number') playerStats.xp = loadSaveData.xp;
         if (typeof loadSaveData.level === 'number') playerStats.level = loadSaveData.level;
+        if (!playerStats.maxHp || playerStats.maxHp < 1) playerStats.maxHp = 100;
+        if (!playerStats.hp || playerStats.hp < 0) playerStats.hp = playerStats.maxHp;
+        // Restore inventory
+        if (Array.isArray(loadSaveData.playerInventory)) {
+            playerInventory = JSON.parse(JSON.stringify(loadSaveData.playerInventory));
+        } else {
+            playerInventory = [];
+        }
+        if (loadSaveData.playerEquipment && typeof loadSaveData.playerEquipment === 'object') {
+            playerEquipment = JSON.parse(JSON.stringify(loadSaveData.playerEquipment));
+        } else {
+            playerEquipment = { helmet: null, amulet: null, chestplate: null, weapon: null, gloves: null, ring1: null, ring2: null, leggings: null };
+        }
+        if (typeof loadSaveData._nextItemId === 'number' && loadSaveData._nextItemId > _nextItemId) {
+            _nextItemId = loadSaveData._nextItemId;
+        }
+        renderInventoryPanel();
         map = Array.isArray(loadSaveData.map) ? JSON.parse(JSON.stringify(loadSaveData.map)) : [];
         furries = Array.isArray(loadSaveData.furries) ? JSON.parse(JSON.stringify(loadSaveData.furries)) : [];
         decorations = Array.isArray(loadSaveData.decorations) ? JSON.parse(JSON.stringify(loadSaveData.decorations)) : [];
@@ -4517,6 +4539,10 @@ export function startGame(loadSaveData) {
         return;
     }
     followers = [];
+    playerInventory = [];
+    playerEquipment = { helmet: null, amulet: null, chestplate: null, weapon: null, gloves: null, ring1: null, ring2: null, leggings: null };
+    _nextItemId = 1;
+    renderInventoryPanel();
     resetPlayerStats();
     map = [];
     furries = [];
@@ -4701,6 +4727,8 @@ function returnToMainMenu() {
     const gameContainer = document.getElementById('gameContainer');
     const startContainer = document.getElementById('startContainer');
     
+    const invPanelMain = document.getElementById('inventoryPanel');
+    if (invPanelMain) invPanelMain.style.display = 'none';
     if (battleCont) battleCont.style.display = 'none';
     if (battleNarr) battleNarr.style.display = 'none';
     if (gameContainer) {
@@ -5641,11 +5669,6 @@ function checkWalkingEvent() {
     let chosen = eligible[eligible.length - 1];
     for (const ev of eligible) { r -= ev.weight; if (r <= 0) { chosen = ev; break; } }
     triggerWalkingEvent(chosen);
-}
-
-function getCurrentTileType() {
-    if (!map.length || !map[playerPosition.x]) return 'grass';
-    return map[playerPosition.x][playerPosition.y] || 'grass';
 }
 
 function triggerWalkingEvent(ev) {

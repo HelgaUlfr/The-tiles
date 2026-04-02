@@ -382,99 +382,47 @@ body {
 }
 
 .stat-bar {
-.stat-bar {
   width: 100px;
-  height: 12px;
+  height: 8px;
   background-color: #6d5e49;
   border-radius: 8px;
   overflow: hidden;
   display: inline-block;
   margin-left: 6px;
-  margin-bottom: 6px;
   position: relative;
+}
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #aaccee, #6ca3cb);
+  width: 100%;
+  transition: width 0.3s ease;
+  border-radius: inherit;
+}
+#xpBar .stat-bar-fill {
+  background: linear-gradient(to right, #aaccee, #6ca3cb);
+}
+.bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 0 2px #000;
 }
 .playerLevelText {
   color: #f0e68c;
   font-weight: bold;
   margin-left: 2px;
 }
-.stat-card .playerLevelText {
-  font-size: 15px;
-}
-.stat-card > div {
-  margin-bottom: 6px;
-}
-/* Use for both player and ally XP bars */
-.stat-bar {
-  width: 100px;
-  height: 8px;
-  background-color: #6d5e49;
-  border-radius: 8px;
-  overflow: hidden;
-  display: inline-block;
-  margin-left: 6px;
-  position: relative;
-}
-.stat-bar-fill {
-  height: 100%;
-  background: linear-gradient(to right, #aaccee, #6ca3cb);
-  width: 100%;
-  transition: width 0.3s ease;
-  border-radius: inherit;
-}
-.bar-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 10px;
-  color: #fff;
-  pointer-events: none;
-  text-shadow: 0 0 2px #000;
-}
-.playerLevelText {
-  color: #f0e68c;
-  font-weight: bold;
-}
-.level-up {
-  animation: levelUpFlash 0.8s;
-}
+.stat-card .playerLevelText { font-size: 15px; }
+.stat-card > div { margin-bottom: 6px; }
+.level-up { animation: levelUpFlash 0.8s; }
 @keyframes levelUpFlash {
   0% { background: #f0e68c; color: #333; }
   60% { background: #f0e68c; color: #333; }
   100% { background: #333; color: #f0e68c; }
-}
-  width: 100px;
-  height: 8px;
-  background-color: #6d5e49;
-  border-radius: 8px;
-  overflow: hidden;
-  display: inline-block;
-  margin-left: 6px;
-  position: relative;
-}
-
-.stat-bar-fill {
-  height: 100%;
-  background: linear-gradient(to right, #a6d96a, #5a8f3a);
-  width: 100%;
-  transition: width 0.3s ease;
-  border-radius: inherit;
-}
-
-#xpBar .stat-bar-fill {
-  background: linear-gradient(to right, #aaccee, #6ca3cb);
-}
-
-.bar-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 10px;
-  color: #fff;
-  pointer-events: none;
-  text-shadow: 0 0 2px #000;
 }
 
 .floating-text {
@@ -1371,6 +1319,149 @@ body {
 .size-medium { background-color: #d7b530; }
 .size-large { background-color: #d9534f; }
 
+/* Inventory Panel */
+#inventoryPanel {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, 96vw);
+  background: #e6e2d3;
+  border: 2px solid #8b6f4a;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  z-index: 200;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.25);
+  transition: transform 0.3s ease, bottom 0.3s ease;
+  display: none;
+}
+#inventoryPanel.collapsed #inventoryGrid { display: none; }
+#inventoryPanel.collapsed { bottom: -2px; }
+#invHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #d8cbb3;
+  border-radius: 8px 8px 0 0;
+  font-weight: bold;
+  font-size: 14px;
+}
+#invToggleBtn {
+  background: #c2b294;
+  border: 1px solid #8b6f4a;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#inventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  padding: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.inv-item {
+  background: #f4f1ea;
+  border: 1px solid #8b6f4a;
+  border-radius: 5px;
+  padding: 4px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: background 0.15s;
+  user-select: none;
+}
+.inv-item:hover { background: #e8d9c0; }
+.inv-item.dragging { opacity: 0.4; }
+.inv-item-icon { font-size: 20px; line-height: 1; }
+.inv-item-label { font-size: 9px; color: #5b4b3a; line-height: 1.1; }
+.inv-empty-slot {
+  background: rgba(0,0,0,0.05);
+  border: 1px dashed #c2b294;
+  border-radius: 5px;
+  min-height: 50px;
+}
+/* Equipment Modal Card */
+#equipmentModalCard {
+  background: #e6e2d3;
+  border: 2px solid #8b6f4a;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 320px;
+  max-width: 480px;
+  width: 90vw;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+#humanoidTemplate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+.equip-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.equip-slot {
+  width: 80px;
+  min-height: 52px;
+  background: #f4f1ea;
+  border: 2px dashed #8b6f4a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  text-align: center;
+  padding: 4px;
+  transition: background 0.15s, border-color 0.15s;
+  gap: 2px;
+}
+.equip-slot:hover { background: #e0d5c0; }
+.equip-slot.has-item { border-style: solid; border-color: #5a3e2b; background: #f0e6d0; }
+.equip-slot.drag-over { background: #d4efc1; border-color: #6aa84f; }
+.equip-item-icon, .equip-empty-icon { font-size: 22px; }
+.slot-label { font-size: 9px; color: #5b4b3a; }
+/* Inventory open button on cards */
+.inv-open-btn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: #d8cbb3;
+  border: 1px solid #8b6f4a;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: center;
+  font-family: inherit;
+}
+.inv-open-btn:hover { background: #c2b294; }
+/* Walking event choice buttons */
+.choice-btn {
+  padding: 6px 14px;
+  background: #8fbf5a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: bold;
+}
+.choice-btn:hover { background: #78a64b; }
+
 </style>
 </head>
 <body>
@@ -1467,7 +1558,6 @@ body {
       <div id="topLeftUI">
         <button id="gameMenuBtn">Menu</button>
         <button id="manualSaveBtn">Save</button>
-        <div id="furryCounter">Furries: 0</div>
       </div>
 <style>
 #topLeftUI {
@@ -1692,6 +1782,7 @@ body {
             <button id="playerFleeBtn" data-action="flee" class="stat-btn">Flee <span id="playerFleeVal">20</span></button>
             <button data-action="feed" class="stat-btn">Feed <span id="playerFeedVal">10</span></button>
             </div>
+            <button class="inv-open-btn" onclick="openEquipmentModal('player')">⚔ Equipment</button>
         </div>
         <h3>Followers</h3>
         <div id="followersContainer"></div>
@@ -1700,6 +1791,10 @@ body {
   <canvas id="minimap" width="220" height="220"></canvas>
   <div id="battleNarrator">
     <button id="narratorSettingsGear" title="Settings">⚙️</button>
+    <div id="narratorChoices" style="display:none;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0;">
+      <button id="eventChoiceA" class="choice-btn"></button>
+      <button id="eventChoiceB" class="choice-btn"></button>
+    </div>
     <div id="narratorSettingsPanel" style="display:none;">
       <div class="settings-header">Narrator Settings</div>
       <div class="settings-row">
@@ -1754,6 +1849,45 @@ body {
   </div>
     </div>
   <!-- minimap moved above enemy board -->
+
+  <!-- Inventory Panel (slide-up from bottom) -->
+  <div id="inventoryPanel" class="collapsed">
+    <div id="invHeader">
+      <span>Inventory (<span id="inventoryCount">0/24</span>)</span>
+      <button id="invToggleBtn" onclick="toggleInventoryPanel()"><span id="invArrow">▲</span> Toggle</button>
+    </div>
+    <div id="inventoryGrid"></div>
+  </div>
+
+  <!-- Equipment Modal -->
+  <div id="equipmentModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:500; justify-content:center; align-items:center;">
+    <div id="equipmentModalCard">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <strong id="equipmentOwnerName">Equipment</strong>
+        <button onclick="closeEquipmentModal()" style="background:#d9534f;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;">Close</button>
+      </div>
+      <div id="humanoidTemplate">
+        <div class="equip-row equip-row-top">
+          <div class="equip-slot" data-slot="helmet"></div>
+        </div>
+        <div class="equip-row equip-row-mid">
+          <div class="equip-slot" data-slot="weapon"></div>
+          <div class="equip-slot" data-slot="chestplate"></div>
+          <div class="equip-slot" data-slot="amulet"></div>
+        </div>
+        <div class="equip-row equip-row-hands">
+          <div class="equip-slot" data-slot="gloves"></div>
+          <div class="equip-slot" data-slot="ring1"></div>
+          <div class="equip-slot" data-slot="ring2"></div>
+        </div>
+        <div class="equip-row equip-row-bot">
+          <div class="equip-slot" data-slot="leggings"></div>
+        </div>
+      </div>
+      <p style="font-size:11px; color:#8b7b6a; margin-top:8px; text-align:center;">Drag items from inventory or click equipped items to unequip.</p>
+    </div>
+  </div>
+
     <div id="outcomeScreen">
         <p id="outcomeMessage"></p>
         <button id="outcomeContinue">Continue</button>
