@@ -209,39 +209,42 @@ body {
 /* Minimap wrapper — fixed frame around canvas */
 #minimapWrapper {
   position: fixed;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   display: none;
   z-index: 1000;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   border: 2px solid #7a5c3a;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,100,0.12);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,200,100,0.12);
+  transition: width 0.25s ease, height 0.25s ease;
 }
 #minimapHeader {
-  background: linear-gradient(to bottom, #2a1a0a, #4a2e14);
+  background: linear-gradient(to bottom, #3d2710, #5a3a1e);
   color: #e8d098;
-  padding: 5px 10px;
+  padding: 6px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: bold;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   cursor: pointer;
   user-select: none;
   font-family: Georgia, serif;
   border-bottom: 1px solid #7a5c3a;
 }
 #minimapExpandHint {
-  opacity: 0.5;
-  font-size: 9px;
+  opacity: 0.55;
+  font-size: 8px;
   font-weight: normal;
   letter-spacing: 0;
+  text-transform: none;
 }
 #minimap {
   display: block;
-  background: #1a1518;
+  background: #12100e;
   width: 220px;
   height: 220px;
 }
@@ -506,78 +509,96 @@ body {
 #board,
 #enemyBoard {
   position: fixed;
-  width: 260px;
+  width: 240px;
   box-sizing: border-box;
-  background: #e6e2d3;
-  border: 2px solid #8b6f4a;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  background: linear-gradient(to bottom, #f4f0e6, #ede8d8);
+  border: 2px solid #7a5c3a;
+  border-radius: 12px;
+  padding: 0 10px 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,220,150,0.15);
   z-index: 5;
-  transition: right 0.3s ease; /* for minimap animation */
+  transition: right 0.3s ease;
 }
 
-/* Player board - moved down to avoid overlaps */
+/* Board panel top headers (first h3 only) — bleed to edges via negative margins */
+#board > h3:first-child,
+#enemyBoard > h3:first-child {
+  margin: 0 -10px 10px;
+  padding: 7px 12px;
+  background: linear-gradient(to bottom, #3d2710, #5a3a1e);
+  color: #e8d098;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: Georgia, serif;
+  border-bottom: 2px solid #7a5c3a;
+  border-radius: 10px 10px 0 0;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#board > h3:first-child::before  { content: "⚔"; font-size: 12px; }
+#enemyBoard > h3:first-child::before { content: "👁"; font-size: 12px; }
+
+/* Followers sub-header inside board */
+#board > h3:not(:first-child) {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8b6f4a;
+  border-bottom: 1px solid #c8b89a;
+  margin: 6px 0 6px;
+  padding-bottom: 4px;
+  font-weight: bold;
+}
+
+/* Player board */
 #board {
-  left: 40px;
-  top: 60%;
-  transform: translateY(-50%); /* center the board vertically */
-  max-height: 70vh; /* limit to 70% of viewport height */
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-height: 72vh;
   overflow-x: hidden;
   overflow-y: auto;
   display: none;
-  /* Hide scrollbar but keep functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-#board::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
-}
+#board::-webkit-scrollbar { display: none; }
 
-/* Enemy board - moved down to avoid overlaps */
+/* Enemy board */
 #enemyBoard {
-  right: 40px;
-  top: 60%;
-  transform: translateY(-50%); /* center the board vertically */
-  max-height: 70vh; /* limit to 70% of viewport height */
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-height: 72vh;
   overflow-x: hidden;
   overflow-y: auto;
   display: block;
-  /* Hide scrollbar but keep functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-#enemyBoard::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
-}
+#enemyBoard::-webkit-scrollbar { display: none; }
 
 /* Enemy board position when minimap is expanded */
 #enemyBoard.minimap-expanded {
-  right: 480px; /* slide out when minimap expands (440px + 40px margin) */
-  transform: translateY(-50%); /* maintain vertical centering when sliding */
+  right: 468px;
+  transform: translateY(-50%);
 }
 
-/* Responsive adjustments for smaller screens */
+/* Responsive adjustments */
 @media (max-height: 600px) {
-  #board, #enemyBoard {
-    max-height: 85vh; /* increase max height on shorter screens */
-  }
+  #board, #enemyBoard { max-height: 88vh; }
 }
 
 @media (max-width: 768px) {
-  #board {
-    left: 20px;
-    width: 240px;
-  }
-  #enemyBoard {
-    right: 20px;
-    width: 240px;
-  }
-  #enemyBoard.minimap-expanded {
-    right: 400px; /* adjust for smaller minimap on mobile */
-  }
+  #board { left: 8px; width: 210px; }
+  #enemyBoard { right: 8px; width: 210px; }
+  #enemyBoard.minimap-expanded { right: 380px; }
 }
 
 /* Small empty hint styling */
@@ -588,39 +609,18 @@ body {
   display: none;
 }
 
-/* Cards default safe state (no unexpected transforms) */
-.stat-card {
-  transform: none;
-}
-
-/* Stagger-ready reveal (if you use the stagger JS) */
-.stat-card.reveal {
-  display: block;
-  animation: slideInRight 0.3s both;
-  animation-delay: var(--delay, 0s);
-}
-
-/* Optional: keep hidden look before reveal to avoid pops */
-#enemyBoard .stat-card {
-  opacity: 0;
-  transform: translateX(16px);
-}
-#enemyBoard .stat-card.reveal {
-  opacity: 1;
-  transform: none;
-}
-
 .stat-card {
   width: 100%;
   background: #f4f1ea;
-  border: 2px solid #8b6f4a;
-  border-radius: 8px;
-  padding: 10px;
-  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  border: none;
+  border-bottom: 1px solid #c8b89a;
+  border-radius: 0;
+  padding: 10px 10px;
+  box-shadow: none;
   box-sizing: border-box;
   display: none;
-  margin-bottom: 10px;
-  transform: none; /* reset any prior transforms */
+  margin-bottom: 0;
+  transform: none;
 }
 
 /* Stagger-ready reveal class (works for enemyCard + follower cards) */
@@ -976,22 +976,87 @@ body {
 }
 
 #battleNarrator {
-    display: block;
-    overflow-y: auto;
-    margin: 20px;
-    padding: 8px;
-    background: #f5f2e5;
-    border: 2px solid #d0c4a6;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #5b4b3a;
-    text-align: left;
-    box-sizing: border-box;
-    font-family: "Courier New", monospace;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 3;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 52vw);
+  max-height: 210px;
+  background: linear-gradient(to bottom, #1a0f07ee, #2a1a0aee);
+  border: 2px solid #7a5c3a;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,200,100,0.1);
+  color: #e8d098;
+  text-align: left;
+  box-sizing: border-box;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  z-index: 50;
+  display: none;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
 }
+
+#battleNarrator::before {
+  content: "📖 NARRATOR";
+  display: block;
+  padding: 5px 12px;
+  background: linear-gradient(to bottom, #3d2710, #5a3a1e);
+  color: #e8d098;
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  font-weight: bold;
+  font-family: Georgia, serif;
+  border-bottom: 1px solid #7a5c3a;
+}
+
+#narratorLog {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #7a5c3a transparent;
+}
+
+#narratorLog::-webkit-scrollbar { width: 4px; }
+#narratorLog::-webkit-scrollbar-track { background: transparent; }
+#narratorLog::-webkit-scrollbar-thumb { background: #7a5c3a; border-radius: 4px; }
+
+#narratorSettingsGear {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  z-index: 2;
+  opacity: 0.7;
+  line-height: 1;
+}
+#narratorSettingsGear:hover { opacity: 1; }
+
+#narratorChoices {
+  padding: 0 10px 8px;
+}
+
+#narratorSettingsPanel {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.3);
+  font-size: 11px;
+  color: #c8b090;
+}
+#narratorSettingsPanel .settings-header {
+  color: #e8d098;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+#narratorSettingsPanel .settings-row {
+  margin-bottom: 6px;
+  gap: 6px;
+}
+#narratorSettingsPanel .settings-row label { color: #c8b090; font-size: 11px; }
 
 @keyframes slideUp {
   from { transform: translateY(100%); }
