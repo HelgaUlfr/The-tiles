@@ -556,6 +556,7 @@ function hideHostileOverlay() {
 // Character stats
 const playerStats = {
     hp: 100,
+    maxHp: 100,
     hunger: 100,
     xp: 0,
     level: 1,
@@ -1067,27 +1068,8 @@ function getCurrentFurryCount() {
     return count;
 }
 
-function ensureFurryCounter() {
-    // Now always present in DOM, just return it
-    return document.getElementById('furryCounter');
-}
-
-// Count furries and update the counter
-function updateFurryCounter() {
-    const count = getCurrentFurryCount();
-    const counter = ensureFurryCounter();
-    counter.textContent = `Furries: ${count}`;
-    // Only show if in game
-    const gameContainer = document.getElementById('gameContainer');
-    if (gameContainer && gameContainer.style.display === 'flex') {
-        counter.style.display = 'block';
-    } else {
-        counter.style.display = 'none';
-    }
-}
-
-// Update the furry counter every 10 seconds
-setInterval(updateFurryCounter, 10000);
+function ensureFurryCounter() { return null; }
+function updateFurryCounter() { /* furry counter removed */ }
 
 function spawnSingleFurry(furryType) {
     if (getCurrentFurryCount() >= 4000) return false;
@@ -1664,6 +1646,11 @@ function movePlayer(x, y) {
         return;
     }
 
+    // Block movement during walking events
+    if (isEventPending) {
+        return;
+    }
+
     if (x === playerPosition.x && y === playerPosition.y) {
         // If the player is already on this tile, do nothing
         return;
@@ -1692,6 +1679,7 @@ function movePlayer(x, y) {
         }
         narrateTile(map[x][y]);
         updateVisitedTiles();
+        checkWalkingEvent();
 
         tilesWalked++;
         totalTilesWalked++;
@@ -3868,12 +3856,12 @@ function playerFuck() {
         const oldPlayerHP = playerStats.hp;
         const oldEnemyHP = currentFurry.hp;
         const oldEnemyFlirt = currentFurry.flirtBar;
-        playerStats.hp = 100;
+        playerStats.hp = playerStats.maxHp;
         currentFurry.hp = currentFurry.maxHp;
         currentFurry.flirtBar = 0;
-        animateStatBar('playerHPBar', oldPlayerHP, 100);
+        animateStatBar('playerHPBar', (oldPlayerHP / playerStats.maxHp) * 100, 100);
         const playerParent = document.getElementById('playerHPBar').parentElement;
-        const playerHeal = 100 - oldPlayerHP;
+        const playerHeal = playerStats.maxHp - oldPlayerHP;
         if (playerHeal > 0) showFloatingText(playerParent, `+${playerHeal}`, 'up', 100);
         animateStatBar('enemyHPBar', (oldEnemyHP / currentFurry.maxHp) * 100, 100);
         const enemyParent = document.getElementById('enemyHPBar').parentElement;
@@ -4581,6 +4569,7 @@ function checkPlayerHP() {
 
 function resetPlayerStats() {
     playerStats.hp = 100;
+    playerStats.maxHp = 100;
     playerStats.xp = 0;
     playerStats.level = 1;
     playerStats.fight = 15;
@@ -5018,6 +5007,14 @@ function updateFollowersUI() {
             statsDiv.appendChild(box);
         });
         card.appendChild(statsDiv);
+
+        // Inventory button for each follower
+        const invBtn = document.createElement('button');
+        invBtn.className = 'inv-open-btn';
+        invBtn.textContent = '🎒 Equipment';
+        invBtn.addEventListener('click', e => { e.stopPropagation(); openEquipmentModal('follower', i); });
+        card.appendChild(invBtn);
+
         container.appendChild(card);
     });
 
@@ -5258,3 +5255,425 @@ document.addEventListener('keyup', (e) => {
 
 // Periodically add more furries to the map
 setInterval(() => spawnFurries(500), 60000);
+
+// ========================================
+// INVENTORY SYSTEM
+// ========================================
+const ITEM_DEFS = {
+    berry_cluster:    { name: 'Berry Cluster',    icon: '🍇', type: 'food',       slot: null,          stats: { hunger: 15 }, description: 'Plump wild berries.' },
+    dried_meat:       { name: 'Dried Meat',        icon: '🥩', type: 'food',       slot: null,          stats: { hunger: 25 }, description: 'Preserved trail rations.' },
+    mushroom:         { name: 'Mushroom',           icon: '🍄', type: 'food',       slot: null,          stats: { hunger: 10 }, description: 'A sturdy forest mushroom.' },
+    hearty_stew:      { name: 'Hearty Stew',       icon: '🍲', type: 'food',       slot: null,          stats: { hunger: 40 }, description: 'Thick, warming stew.' },
+    stone_sword:      { name: 'Stone Sword',        icon: '🗡️', type: 'weapon',    slot: 'weapon',      stats: { fight: 5 },   description: 'A rough stone blade.' },
+    iron_sword:       { name: 'Iron Sword',         icon: '⚔️', type: 'weapon',    slot: 'weapon',      stats: { fight: 10 },  description: 'A sharp iron blade.' },
+    bone_blade:       { name: 'Bone Blade',         icon: '🦴', type: 'weapon',    slot: 'weapon',      stats: { fight: 7, feast: 2 }, description: "Carved from a beast's bone." },
+    leather_cap:      { name: 'Leather Cap',        icon: '🪖', type: 'helmet',    slot: 'helmet',      stats: { maxHp: 5 },   description: 'Basic head protection.' },
+    iron_helm:        { name: 'Iron Helm',          icon: '⛑️', type: 'helmet',    slot: 'helmet',      stats: { maxHp: 10, fight: 2 }, description: 'Heavy but reliable.' },
+    charm_amulet:     { name: 'Charm Amulet',       icon: '📿', type: 'amulet',    slot: 'amulet',      stats: { flirt: 5 },   description: 'Enhances your magnetism.' },
+    fang_amulet:      { name: 'Fang Amulet',        icon: '🪬', type: 'amulet',    slot: 'amulet',      stats: { feast: 3 },   description: "Made from a predator's fang." },
+    leather_vest:     { name: 'Leather Vest',       icon: '🦺', type: 'chestplate',slot: 'chestplate',  stats: { maxHp: 10 },  description: 'Flexible leather armor.' },
+    iron_chest:       { name: 'Iron Chestplate',    icon: '🛡️', type: 'chestplate',slot: 'chestplate',  stats: { maxHp: 20, fight: 1 }, description: 'Heavy iron plate.' },
+    leather_gloves:   { name: 'Leather Gloves',     icon: '🧤', type: 'gloves',    slot: 'gloves',      stats: { fight: 2 },   description: 'Protective grip.' },
+    grip_gloves:      { name: 'Grip Gloves',        icon: '🥊', type: 'gloves',    slot: 'gloves',      stats: { fight: 2, feast: 2 }, description: 'Enhanced for grappling.' },
+    speed_ring:       { name: 'Speed Ring',         icon: '💍', type: 'ring',      slot: 'ring',        stats: { flee: 3 },    description: 'Increases agility.' },
+    strength_ring:    { name: 'Strength Ring',      icon: '💍', type: 'ring',      slot: 'ring',        stats: { fight: 3 },   description: 'Amplifies striking power.' },
+    charm_ring:       { name: 'Charm Ring',         icon: '💍', type: 'ring',      slot: 'ring',        stats: { flirt: 3 },   description: 'Draws others to you.' },
+    leather_leggings: { name: 'Leather Leggings',   icon: '👖', type: 'leggings',  slot: 'leggings',    stats: { flee: 3 },    description: 'Flexible leg protection.' },
+    iron_leggings:    { name: 'Iron Leggings',      icon: '🦿', type: 'leggings',  slot: 'leggings',    stats: { maxHp: 8, flee: 1 }, description: 'Heavy leg armor.' },
+};
+
+const MAX_INVENTORY = 24;
+let playerInventory = [];
+let playerEquipment = { helmet: null, amulet: null, chestplate: null, weapon: null, gloves: null, ring1: null, ring2: null, leggings: null };
+let _equipmentModalOwner = null;
+let _nextItemId = 1;
+
+function createItemInstance(key) {
+    const def = ITEM_DEFS[key];
+    if (!def) return null;
+    return { id: _nextItemId++, key, name: def.name, icon: def.icon, type: def.type, slot: def.slot, stats: { ...def.stats }, description: def.description };
+}
+
+function addToInventory(key) {
+    if (playerInventory.length >= MAX_INVENTORY) return false;
+    const item = createItemInstance(key);
+    if (!item) return false;
+    playerInventory.push(item);
+    renderInventoryPanel();
+    return true;
+}
+
+function removeFromInventory(itemId) {
+    const idx = playerInventory.findIndex(i => i.id === itemId);
+    if (idx === -1) return null;
+    const [item] = playerInventory.splice(idx, 1);
+    renderInventoryPanel();
+    return item;
+}
+
+function getOwnerStats(owner) {
+    if (!owner) return null;
+    if (owner.type === 'player') return playerStats;
+    if (owner.type === 'follower') return followers[owner.index] || null;
+    return null;
+}
+
+function getOwnerEquipment(owner) {
+    if (!owner) return null;
+    if (owner.type === 'player') return playerEquipment;
+    if (owner.type === 'follower' && followers[owner.index]) {
+        if (!followers[owner.index].equipment) {
+            followers[owner.index].equipment = { helmet: null, amulet: null, chestplate: null, weapon: null, gloves: null, ring1: null, ring2: null, leggings: null };
+        }
+        return followers[owner.index].equipment;
+    }
+    return null;
+}
+
+function applyItemStats(stats, target, multiplier) {
+    if (!stats || !target) return;
+    if (stats.fight)  target.fight  = (target.fight  || 0) + stats.fight  * multiplier;
+    if (stats.flirt)  target.flirt  = (target.flirt  || 0) + stats.flirt  * multiplier;
+    if (stats.feast)  target.feast  = (target.feast  || 0) + stats.feast  * multiplier;
+    if (stats.flee)   target.flee   = (target.flee   || 0) + stats.flee   * multiplier;
+    if (stats.feed)   target.feed   = (target.feed   || 0) + stats.feed   * multiplier;
+    if (stats.maxHp) {
+        target.maxHp = (target.maxHp || 100) + stats.maxHp * multiplier;
+        if (multiplier > 0) target.hp = Math.min((target.hp || 0) + stats.maxHp, target.maxHp);
+        else target.hp = Math.min(target.hp || 0, target.maxHp);
+    }
+}
+
+function getEquipSlotKey(item, equipment) {
+    if (item.slot === 'ring') {
+        if (!equipment.ring1) return 'ring1';
+        if (!equipment.ring2) return 'ring2';
+        return null;
+    }
+    return item.slot;
+}
+
+function equipItem(owner, item) {
+    const equipment = getOwnerEquipment(owner);
+    const ownerStats = getOwnerStats(owner);
+    if (!equipment || !ownerStats) return false;
+    const slotKey = getEquipSlotKey(item, equipment);
+    if (!slotKey) { updateNarrator('Both ring slots are already occupied.'); return false; }
+    if (equipment[slotKey]) unequipItemFromSlot(owner, slotKey, false);
+    removeFromInventory(item.id);
+    equipment[slotKey] = item;
+    applyItemStats(item.stats, ownerStats, 1);
+    updatePlayerStats();
+    updateHPBars();
+    updateFollowersUI();
+    renderEquipmentModal(_equipmentModalOwner);
+    renderInventoryPanel();
+    return true;
+}
+
+function unequipItemFromSlot(owner, slotKey, addToInv) {
+    const equipment = getOwnerEquipment(owner);
+    const ownerStats = getOwnerStats(owner);
+    if (!equipment || !ownerStats) return;
+    const item = equipment[slotKey];
+    if (!item) return;
+    equipment[slotKey] = null;
+    applyItemStats(item.stats, ownerStats, -1);
+    if (addToInv && playerInventory.length < MAX_INVENTORY) {
+        playerInventory.push(item);
+        renderInventoryPanel();
+    }
+    updatePlayerStats();
+    updateHPBars();
+    updateFollowersUI();
+    if (_equipmentModalOwner) renderEquipmentModal(_equipmentModalOwner);
+}
+
+function useFood(itemId) {
+    const item = removeFromInventory(itemId);
+    if (!item || item.type !== 'food') return;
+    if (item.stats.hunger) {
+        playerStats.hunger = Math.min(playerStats.hunger + item.stats.hunger, 100);
+        updateHPBars();
+        updateNarrator(`You eat the ${item.name}. +${item.stats.hunger} Hunger.`);
+    }
+}
+
+function renderInventoryPanel() {
+    const grid = document.getElementById('inventoryGrid');
+    const countEl = document.getElementById('inventoryCount');
+    if (!grid) return;
+    if (countEl) countEl.textContent = `${playerInventory.length}/${MAX_INVENTORY}`;
+    grid.innerHTML = '';
+    playerInventory.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'inv-item';
+        el.draggable = true;
+        el.dataset.itemId = item.id;
+        const statStr = Object.entries(item.stats).map(([k, v]) => `${k}:+${v}`).join(' ');
+        el.title = `${item.name}\n${item.description}\n${statStr}`;
+        el.innerHTML = `<span class="inv-item-icon">${item.icon}</span><span class="inv-item-label">${item.name}</span>`;
+        el.addEventListener('click', () => {
+            if (item.type === 'food') {
+                useFood(item.id);
+            } else if (_equipmentModalOwner) {
+                equipItem(_equipmentModalOwner, item);
+            }
+        });
+        el.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('itemId', String(item.id));
+            el.classList.add('dragging');
+        });
+        el.addEventListener('dragend', () => el.classList.remove('dragging'));
+        grid.appendChild(el);
+    });
+    for (let i = playerInventory.length; i < MAX_INVENTORY; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'inv-empty-slot';
+        grid.appendChild(empty);
+    }
+}
+
+function getSlotDef(slotKey) {
+    const map = {
+        helmet:     { icon: '🪖', label: 'Head' },
+        amulet:     { icon: '📿', label: 'Neck' },
+        chestplate: { icon: '🦺', label: 'Chest' },
+        weapon:     { icon: '⚔️',  label: 'Weapon' },
+        gloves:     { icon: '🧤', label: 'Hands' },
+        ring1:      { icon: '💍', label: 'Ring 1' },
+        ring2:      { icon: '💍', label: 'Ring 2' },
+        leggings:   { icon: '👖', label: 'Legs' },
+    };
+    return map[slotKey] || { icon: '?', label: slotKey };
+}
+
+function openEquipmentModal(ownerType, ownerIndex) {
+    _equipmentModalOwner = ownerType === 'player' ? { type: 'player' } : { type: 'follower', index: ownerIndex };
+    const modal = document.getElementById('equipmentModal');
+    const nameEl = document.getElementById('equipmentOwnerName');
+    if (!modal) return;
+    let ownerName = ownerType === 'player' ? (playerName || 'Player') : (followers[ownerIndex] ? followers[ownerIndex].name : 'Follower');
+    if (ownerType === 'follower' && followers[ownerIndex] && !followers[ownerIndex].equipment) {
+        followers[ownerIndex].equipment = { helmet: null, amulet: null, chestplate: null, weapon: null, gloves: null, ring1: null, ring2: null, leggings: null };
+    }
+    if (nameEl) nameEl.textContent = `${ownerName}'s Equipment`;
+    renderEquipmentModal(_equipmentModalOwner);
+    modal.style.display = 'flex';
+    const panel = document.getElementById('inventoryPanel');
+    if (panel && panel.classList.contains('collapsed')) toggleInventoryPanel();
+}
+
+function closeEquipmentModal() {
+    const modal = document.getElementById('equipmentModal');
+    if (modal) modal.style.display = 'none';
+    _equipmentModalOwner = null;
+}
+
+function renderEquipmentModal(owner) {
+    if (!owner) return;
+    const equipment = getOwnerEquipment(owner);
+    if (!equipment) return;
+    const slots = document.querySelectorAll('#humanoidTemplate .equip-slot');
+    slots.forEach(slotEl => {
+        const slotKey = slotEl.dataset.slot;
+        const equipped = equipment[slotKey];
+        const def = getSlotDef(slotKey);
+        slotEl.innerHTML = '';
+        slotEl.ondragover = e => { e.preventDefault(); slotEl.classList.add('drag-over'); };
+        slotEl.ondragleave = () => slotEl.classList.remove('drag-over');
+        slotEl.ondrop = e => {
+            e.preventDefault();
+            slotEl.classList.remove('drag-over');
+            const itemId = parseInt(e.dataTransfer.getData('itemId'), 10);
+            const item = playerInventory.find(i => i.id === itemId);
+            if (!item) return;
+            const validSlot = (slotKey === 'ring1' || slotKey === 'ring2') ? item.slot === 'ring' : item.slot === slotKey;
+            if (!validSlot) { updateNarrator(`A ${item.name} cannot go in the ${def.label} slot.`); return; }
+            const eq = getOwnerEquipment(owner);
+            const os = getOwnerStats(owner);
+            if (!eq || !os) return;
+            if (eq[slotKey]) unequipItemFromSlot(owner, slotKey, true);
+            removeFromInventory(itemId);
+            eq[slotKey] = item;
+            applyItemStats(item.stats, os, 1);
+            updatePlayerStats(); updateHPBars(); updateFollowersUI();
+            renderEquipmentModal(owner); renderInventoryPanel();
+        };
+        if (equipped) {
+            slotEl.classList.add('has-item');
+            slotEl.innerHTML = `<span class="equip-item-icon">${equipped.icon}</span><span class="slot-label">${equipped.name}</span>`;
+            slotEl.title = `${equipped.name} — click to unequip`;
+            slotEl.onclick = () => unequipItemFromSlot(owner, slotKey, true);
+        } else {
+            slotEl.classList.remove('has-item');
+            slotEl.innerHTML = `<span class="equip-empty-icon">${def.icon}</span><span class="slot-label">${def.label}</span>`;
+            slotEl.title = `Empty ${def.label} slot`;
+            slotEl.onclick = null;
+        }
+    });
+}
+
+function toggleInventoryPanel() {
+    const panel = document.getElementById('inventoryPanel');
+    if (!panel) return;
+    const arrow = document.getElementById('invArrow');
+    if (panel.classList.contains('collapsed')) {
+        panel.classList.remove('collapsed');
+        if (arrow) arrow.textContent = '▼';
+    } else {
+        panel.classList.add('collapsed');
+        if (arrow) arrow.textContent = '▲';
+    }
+}
+
+window.openEquipmentModal = openEquipmentModal;
+window.closeEquipmentModal = closeEquipmentModal;
+window.toggleInventoryPanel = toggleInventoryPanel;
+
+// ========================================
+// WALKING EVENTS SYSTEM
+// ========================================
+let isEventPending = false;
+let _currentWalkingEvent = null;
+
+const WALKING_EVENTS = [
+    {
+        id: 'hidden_chest', weight: 3, biomes: null,
+        narration: 'You spot something half-buried beneath a gnarled root — an old chest, its iron clasp still intact.',
+        choiceA: '🔓 Open the chest', choiceB: '🚶 Leave it',
+        onChoiceA: async () => {
+            const roll = Math.random();
+            let key;
+            if (roll < 0.08) key = 'iron_sword';
+            else if (roll < 0.16) key = 'iron_helm';
+            else if (roll < 0.24) key = 'iron_chest';
+            else {
+                const pool = ['stone_sword','leather_cap','berry_cluster','dried_meat','charm_amulet','leather_gloves','speed_ring','leather_vest','leather_leggings','mushroom','fang_amulet'];
+                key = pool[Math.floor(Math.random() * pool.length)];
+            }
+            const added = addToInventory(key);
+            const def = ITEM_DEFS[key];
+            updateNarrator(added ? `You crack the chest open and find a ${def.name}! Added to your inventory.` : `The chest holds a ${def.name}, but your inventory is full!`);
+        },
+        onChoiceB: async () => updateNarrator('You leave the chest undisturbed and continue on your way.')
+    },
+    {
+        id: 'berry_bush', weight: 4, biomes: ['grass', 'forest', 'swamp'],
+        narration: 'A cluster of plump wild berries glistens on a nearby bush, ripe for the picking.',
+        choiceA: '🫐 Pick the berries', choiceB: '🚶 Walk past',
+        onChoiceA: async () => {
+            const added = addToInventory('berry_cluster');
+            updateNarrator(added ? 'You carefully pick the berries and tuck them away.' : 'Your pockets are already full. The berries will have to wait.');
+        },
+        onChoiceB: async () => updateNarrator('You leave the berries for the wildlife and press on.')
+    },
+    {
+        id: 'mushroom_patch', weight: 3, biomes: ['forest', 'swamp'],
+        narration: 'A neat ring of sturdy mushrooms grows in the shade of a fallen log. They look edible — probably.',
+        choiceA: '🍄 Gather them', choiceB: '🚶 Leave them',
+        onChoiceA: async () => {
+            if (Math.random() < 0.8) {
+                const added = addToInventory('mushroom');
+                updateNarrator(added ? 'You gather a handful of firm mushrooms.' : 'No room to carry more mushrooms.');
+            } else {
+                updateNarrator('On closer inspection they have a faint glow. You decide not to risk it.');
+            }
+        },
+        onChoiceB: async () => updateNarrator('You step around the mushroom ring and continue.')
+    },
+    {
+        id: 'fallen_pack', weight: 2, biomes: null,
+        narration: "You nearly trip over a worn leather pack half-buried in the undergrowth. It belonged to someone who didn't make it back.",
+        choiceA: '🎒 Search the pack', choiceB: '🙏 Pay your respects',
+        onChoiceA: async () => {
+            const pool = [
+                { key: 'dried_meat', w: 30 }, { key: 'leather_gloves', w: 20 },
+                { key: 'stone_sword', w: 20 }, { key: 'leather_cap', w: 15 },
+                { key: 'charm_amulet', w: 10 }, { key: 'iron_sword', w: 5 }
+            ];
+            const total = pool.reduce((s, e) => s + e.w, 0);
+            let r = Math.random() * total;
+            let key = pool[0].key;
+            for (const entry of pool) { r -= entry.w; if (r <= 0) { key = entry.key; break; } }
+            const added = addToInventory(key);
+            const def = ITEM_DEFS[key];
+            updateNarrator(added ? `You rummage through the pack and find a ${def.name}.` : `There's a ${def.name} in the pack, but you can't carry any more.`);
+        },
+        onChoiceB: async () => updateNarrator('You bow your head briefly and leave the pack where it lies.')
+    },
+    {
+        id: 'fresh_stream', weight: 2, biomes: ['pond', 'swamp', 'tundra', 'grass'],
+        narration: 'A clear stream trickles across your path. The water is cold and fresh, and your hunger reminds itself.',
+        choiceA: '💧 Drink and rest', choiceB: '🚶 Keep moving',
+        onChoiceA: async () => {
+            playerStats.hunger = Math.min(playerStats.hunger + 15, 100);
+            updateHPBars();
+            updateNarrator('You cup the cool water and drink deeply. (+15 Hunger)');
+        },
+        onChoiceB: async () => updateNarrator('Thirst can wait. You press on through the terrain.')
+    },
+    {
+        id: 'abandoned_camp', weight: 2, biomes: ['forest', 'tundra', 'grass'],
+        narration: "The cold remnants of a campfire sit in a small clearing. Someone camped here recently and left in a hurry.",
+        choiceA: '🔍 Investigate', choiceB: '🚶 Keep moving',
+        onChoiceA: async () => {
+            const roll = Math.random();
+            let key;
+            if (roll < 0.5) key = Math.random() < 0.5 ? 'dried_meat' : 'hearty_stew';
+            else key = Math.random() < 0.4 ? 'leather_cap' : 'speed_ring';
+            const added = addToInventory(key);
+            const def = ITEM_DEFS[key];
+            updateNarrator(added ? `You find a ${def.name} among the abandoned gear.` : 'There\'s useful gear here but your inventory is full.');
+        },
+        onChoiceB: async () => updateNarrator('You stride past the cold camp without slowing down.')
+    }
+];
+
+function checkWalkingEvent() {
+    if (isEventPending || currentFurry) return;
+    if (Math.random() > 0.07) return;
+    const tile = getCurrentTileType();
+    const eligible = WALKING_EVENTS.filter(ev => !ev.biomes || ev.biomes.includes(tile));
+    if (!eligible.length) return;
+    const total = eligible.reduce((s, e) => s + e.weight, 0);
+    let r = Math.random() * total;
+    let chosen = eligible[eligible.length - 1];
+    for (const ev of eligible) { r -= ev.weight; if (r <= 0) { chosen = ev; break; } }
+    triggerWalkingEvent(chosen);
+}
+
+function getCurrentTileType() {
+    if (!map.length || !map[playerPosition.x]) return 'grass';
+    return map[playerPosition.x][playerPosition.y] || 'grass';
+}
+
+function triggerWalkingEvent(ev) {
+    isEventPending = true;
+    _currentWalkingEvent = ev;
+    updateNarrator(ev.narration);
+    const btnA = document.getElementById('eventChoiceA');
+    const btnB = document.getElementById('eventChoiceB');
+    const choicesDiv = document.getElementById('narratorChoices');
+    if (btnA && btnB && choicesDiv) {
+        btnA.textContent = ev.choiceA;
+        btnB.textContent = ev.choiceB;
+        choicesDiv.style.display = 'flex';
+        btnA.onclick = () => resolveWalkingEvent('A');
+        btnB.onclick = () => resolveWalkingEvent('B');
+    }
+}
+
+async function resolveWalkingEvent(choice) {
+    const choicesDiv = document.getElementById('narratorChoices');
+    if (choicesDiv) choicesDiv.style.display = 'none';
+    const ev = _currentWalkingEvent;
+    isEventPending = false;
+    _currentWalkingEvent = null;
+    if (ev) {
+        if (choice === 'A') await ev.onChoiceA();
+        else await ev.onChoiceB();
+    }
+}
+
+window.resolveWalkingEvent = resolveWalkingEvent;
